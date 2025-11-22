@@ -83,9 +83,15 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["var(--font-sans)"],
+        sans: ["Inter", "system-ui", "sans-serif"],
         serif: ["var(--font-serif)"],
-        mono: ["var(--font-mono)"],
+        mono: ["JetBrains Mono", "monospace"],
+      },
+      minHeight: {
+        '8': '2rem',
+        '9': '2.25rem',
+        '10': '2.5rem',
+        '12': '3rem',
       },
       keyframes: {
         "accordion-down": {

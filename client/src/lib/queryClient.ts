@@ -24,12 +24,36 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
+
+export const buildQueryUrl = (queryKey: readonly unknown[]): string => {
+  const path = queryKey[0] as string;
+  
+  if (queryKey.length === 1) {
+    return path;
+  }
+  
+  const params = queryKey[1];
+  if (typeof params === 'object' && params !== null) {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "all") {
+        searchParams.append(key, String(value));
+      }
+    });
+    const queryString = searchParams.toString();
+    return queryString ? `${path}?${queryString}` : path;
+  }
+  
+  return queryKey.join("/");
+};
+
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = buildQueryUrl(queryKey);
+    const res = await fetch(url, {
       credentials: "include",
     });
 
