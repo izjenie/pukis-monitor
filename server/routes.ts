@@ -30,7 +30,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/outlets/:id", async (req, res) => {
+  app.get("/api/outlets/:id", isAuthenticated, async (req, res) => {
     try {
       const outlet = await storage.getOutlet(req.params.id);
       if (!outlet) {
@@ -42,7 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/outlets", async (req, res) => {
+  app.post("/api/outlets", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertOutletSchema.parse(req.body);
       const outlet = await storage.createOutlet(validatedData);
@@ -52,7 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/outlets/:id", async (req, res) => {
+  app.patch("/api/outlets/:id", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertOutletSchema.parse(req.body);
       const outlet = await storage.updateOutlet(req.params.id, validatedData);
@@ -65,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/outlets/:id", async (req, res) => {
+  app.delete("/api/outlets/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deleteOutlet(req.params.id);
       if (!deleted) {
@@ -77,7 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/sales", async (req, res) => {
+  app.get("/api/sales", isAuthenticated, async (req, res) => {
     try {
       const { date, outletId } = req.query;
       const sales = await storage.getSalesWithCalculations({
@@ -90,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/sales/mtd", async (req, res) => {
+  app.get("/api/sales/mtd", isAuthenticated, async (req, res) => {
     try {
       const { date, outletId } = req.query;
       if (!date) {
@@ -106,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/sales/mtd-summary", async (req, res) => {
+  app.get("/api/sales/mtd-summary", isAuthenticated, async (req, res) => {
     try {
       const { date } = req.query;
       if (!date) {
@@ -119,7 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/sales/:id", async (req, res) => {
+  app.get("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {
       const sale = await storage.getSalesById(req.params.id);
       if (!sale) {
@@ -131,7 +131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/sales", async (req, res) => {
+  app.post("/api/sales", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertSalesSchema.parse(req.body);
 
@@ -164,7 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/sales/:id", async (req, res) => {
+  app.patch("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {
       const validatedData = updateSalesSchema.parse(req.body);
       const sale = await storage.updateSales(req.params.id, validatedData);
@@ -177,7 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/sales/:id", async (req, res) => {
+  app.delete("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deleteSales(req.params.id);
       if (!deleted) {
