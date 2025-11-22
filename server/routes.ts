@@ -2,9 +2,26 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertOutletSchema, insertSalesSchema, updateSalesSchema } from "@shared/schema";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/outlets", async (req, res) => {
+  // Set up Replit Auth
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error: any) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // All routes below require authentication
+  app.get("/api/outlets", isAuthenticated, async (req, res) => {
     try {
       const outlets = await storage.getOutlets();
       res.json(outlets);

@@ -5,13 +5,20 @@ import {
   type InsertSales,
   type SalesWithCalculations,
   type MTDSummary,
+  type User,
+  type UpsertUser,
   outlets,
   sales,
+  users,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations - Required for Replit Auth
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+
   getOutlets(): Promise<Outlet[]>;
   getOutlet(id: string): Promise<Outlet | undefined>;
   createOutlet(outlet: InsertOutlet): Promise<Outlet>;
@@ -34,6 +41,27 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // User operations - Required for Replit Auth
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
   async getOutlets(): Promise<Outlet[]> {
     return await db.select().from(outlets);
   }
