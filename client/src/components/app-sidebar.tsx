@@ -1,4 +1,4 @@
-import { Home, TrendingUp, Calendar, Store } from "lucide-react";
+import { Home, TrendingUp, Calendar, Store, Wallet } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -17,6 +17,12 @@ const menuItems = [
     url: "/",
     icon: Home,
     testId: "link-sales-input",
+  },
+  {
+    title: "Pengeluaran",
+    url: "/expenses",
+    icon: Wallet,
+    testId: "link-expenses",
   },
   {
     title: "Dashboard Harian",

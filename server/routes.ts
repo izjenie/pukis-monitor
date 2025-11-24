@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertOutletSchema, insertSalesSchema, updateSalesSchema } from "@shared/schema";
+import { insertOutletSchema, insertSalesSchema, updateSalesSchema, insertExpenseSchema, updateExpenseSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -182,6 +182,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deleted = await storage.deleteSales(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Data penjualan tidak ditemukan" });
+      }
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Expense routes
+  app.get("/api/expenses", isAuthenticated, async (req, res) => {
+    try {
+      const { date, outletId, type } = req.query;
+      const expenses = await storage.getExpensesWithOutlet({
+        date: date as string | undefined,
+        outletId: outletId as string | undefined,
+        type: type as "harian" | "bulanan" | undefined,
+      });
+      res.json(expenses);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/expenses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const expense = await storage.getExpenseById(req.params.id);
+      if (!expense) {
+        return res.status(404).json({ message: "Data pengeluaran tidak ditemukan" });
+      }
+      res.json(expense);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/expenses", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertExpenseSchema.parse(req.body);
+
+      const outlet = await storage.getOutlet(validatedData.outletId);
+      if (!outlet) {
+        return res.status(404).json({ message: "Outlet tidak ditemukan" });
+      }
+
+      const expense = await storage.createExpense(validatedData);
+      res.status(201).json(expense);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/expenses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = updateExpenseSchema.parse(req.body);
+      const expense = await storage.updateExpense(req.params.id, validatedData);
+      if (!expense) {
+        return res.status(404).json({ message: "Data pengeluaran tidak ditemukan" });
+      }
+      res.json(expense);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/expenses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const deleted = await storage.deleteExpense(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Data pengeluaran tidak ditemukan" });
       }
       res.status(204).send();
     } catch (error: any) {

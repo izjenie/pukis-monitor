@@ -21,6 +21,7 @@ import SalesInput from "@/pages/sales-input";
 import DashboardHarian from "@/pages/dashboard-harian";
 import DashboardMTD from "@/pages/dashboard-mtd";
 import Outlets from "@/pages/outlets";
+import Expenses from "@/pages/expenses";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
@@ -104,6 +105,7 @@ function AuthenticatedApp() {
               <Route path="/dashboard-harian" component={DashboardHarian} />
               <Route path="/dashboard-mtd" component={DashboardMTD} />
               <Route path="/outlets" component={Outlets} />
+              <Route path="/expenses" component={Expenses} />
               <Route component={NotFound} />
             </Switch>
           </main>
