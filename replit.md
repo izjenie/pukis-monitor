@@ -2,9 +2,9 @@
 
 ## Overview
 
-Pukis Monitoring is a business intelligence application for tracking daily sales performance across multiple outlets. The application enables daily sales data entry, performance analytics, and automated reporting for a food retail business. It provides real-time dashboards showing revenue, gross margins, and sales trends with the ability to generate WhatsApp-formatted summaries for quick sharing.
+Pukis Monitoring is a business intelligence application for tracking daily sales performance and expenses across multiple outlets. The application enables daily sales data entry, expense management (daily and monthly), performance analytics, and automated reporting for a food retail business. It provides real-time dashboards showing revenue, gross margins, and sales trends with the ability to generate WhatsApp-formatted summaries for quick sharing.
 
-The system is designed with a mobile-first approach to support field operations, featuring touch-friendly inputs, clear data visualization, and efficient workflows for daily sales tracking.
+The system is designed with a mobile-first approach to support field operations, featuring touch-friendly inputs, clear data visualization, and efficient workflows for daily sales tracking and expense monitoring.
 
 ## User Preferences
 
@@ -58,7 +58,7 @@ Preferred communication style: Simple, everyday language.
 
 **Database Schema**
 
-The application uses two primary tables:
+The application uses three primary tables:
 
 1. **outlets** - Stores outlet master data
    - Unique identifier (UUID)
@@ -73,6 +73,15 @@ The application uses two primary tables:
    - Inventory tracking (total sold, remaining, returned, total production)
    - Optional sold-out time tracking
    - Automatic timestamp management
+
+3. **expenses** - Daily and monthly expense records
+   - Links to outlet via foreign key relationship
+   - Date field (YYYY-MM-DD format)
+   - Type field distinguishing between daily ("harian") and monthly ("bulanan") expenses
+   - Description field for expense details
+   - Amount field for expense value (validated >= 0)
+   - Automatic timestamp management
+   - Forms use react-hook-form with Zod validation for data integrity
 
 **Calculated Fields Strategy**
 - Gross margin and percentages computed in application layer rather than database

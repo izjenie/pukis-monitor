@@ -164,7 +164,15 @@ export const insertExpenseSchema = createInsertSchema(expenses).omit({
   description: z.string().min(1, "Deskripsi harus diisi"),
 });
 
-export const updateExpenseSchema = insertExpenseSchema.partial();
+export const updateExpenseSchema = z.object({
+  outletId: z.string().optional(),
+  date: z.string().optional(),
+  type: z.enum(["harian", "bulanan"], {
+    errorMap: () => ({ message: "Jenis harus 'harian' atau 'bulanan'" }),
+  }).optional(),
+  description: z.string().min(1, "Deskripsi harus diisi").optional(),
+  amount: z.number().min(0, "Jumlah harus >= 0").optional(),
+});
 
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
 export type Expense = typeof expenses.$inferSelect;
