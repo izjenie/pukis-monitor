@@ -308,6 +308,84 @@ export class DatabaseStorage implements IStorage {
       (a, b) => b.totalGrossMargin - a.totalGrossMargin
     );
   }
+
+  // Expense operations
+  async getExpenses(filters?: {
+    date?: string;
+    outletId?: string;
+    type?: "harian" | "bulanan";
+  }): Promise<Expense[]> {
+    let query = db.select().from(expenses);
+
+    const conditions = [];
+    if (filters?.date) {
+      conditions.push(eq(expenses.date, filters.date));
+    }
+    if (filters?.outletId) {
+      conditions.push(eq(expenses.outletId, filters.outletId));
+    }
+    if (filters?.type) {
+      conditions.push(eq(expenses.type, filters.type));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const result = await query;
+    return result.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }
+
+  async getExpenseById(id: string): Promise<Expense | undefined> {
+    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
+    return expense || undefined;
+  }
+
+  async createExpense(insertExpense: InsertExpense): Promise<Expense> {
+    const [expense] = await db
+      .insert(expenses)
+      .values(insertExpense)
+      .returning();
+    return expense;
+  }
+
+  async updateExpense(
+    id: string,
+    insertExpense: Partial<InsertExpense>
+  ): Promise<Expense | undefined> {
+    const [expense] = await db
+      .update(expenses)
+      .set({
+        ...insertExpense,
+        updatedAt: new Date(),
+      })
+      .where(eq(expenses.id, id))
+      .returning();
+    return expense || undefined;
+  }
+
+  async deleteExpense(id: string): Promise<boolean> {
+    const result = await db.delete(expenses).where(eq(expenses.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getExpensesWithOutlet(filters?: {
+    date?: string;
+    outletId?: string;
+    type?: "harian" | "bulanan";
+  }): Promise<ExpenseWithOutlet[]> {
+    const expensesData = await this.getExpenses(filters);
+    const outletsData = await this.getOutlets();
+
+    const outletMap = new Map(outletsData.map((o) => [o.id, o]));
+
+    return expensesData.map((expense) => ({
+      ...expense,
+      outletName: outletMap.get(expense.outletId)?.name,
+    }));
+  }
 }
 
 export const storage = new DatabaseStorage();
