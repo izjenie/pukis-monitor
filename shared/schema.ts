@@ -136,3 +136,40 @@ export type OutletRanking = {
   totalSold: number;
   rank: number;
 };
+
+// Expenses type enum
+export type ExpenseType = "harian" | "bulanan";
+
+// Expenses table
+export const expenses = pgTable("expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  outletId: varchar("outlet_id").notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD format
+  type: varchar("type").$type<ExpenseType>().notNull(), // "harian" atau "bulanan"
+  description: text("description").notNull(),
+  amount: real("amount").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertExpenseSchema = createInsertSchema(expenses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  amount: z.number().min(0, "Jumlah harus >= 0"),
+  type: z.enum(["harian", "bulanan"], {
+    errorMap: () => ({ message: "Jenis harus 'harian' atau 'bulanan'" }),
+  }),
+  description: z.string().min(1, "Deskripsi harus diisi"),
+});
+
+export const updateExpenseSchema = insertExpenseSchema.partial();
+
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+export type Expense = typeof expenses.$inferSelect;
+
+// Expense with outlet name for display
+export type ExpenseWithOutlet = Expense & {
+  outletName?: string;
+};

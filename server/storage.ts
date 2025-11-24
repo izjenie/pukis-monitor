@@ -7,9 +7,13 @@ import {
   type MTDSummary,
   type User,
   type UpsertUser,
+  type Expense,
+  type InsertExpense,
+  type ExpenseWithOutlet,
   outlets,
   sales,
   users,
+  expenses,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte } from "drizzle-orm";
@@ -38,6 +42,14 @@ export interface IStorage {
 
   getMTDSales(date: string, outletId?: string): Promise<SalesWithCalculations[]>;
   getMTDSummary(date: string): Promise<MTDSummary[]>;
+
+  // Expense operations
+  getExpenses(filters?: { date?: string; outletId?: string; type?: "harian" | "bulanan" }): Promise<Expense[]>;
+  getExpenseById(id: string): Promise<Expense | undefined>;
+  createExpense(expense: InsertExpense): Promise<Expense>;
+  updateExpense(id: string, expense: Partial<InsertExpense>): Promise<Expense | undefined>;
+  deleteExpense(id: string): Promise<boolean>;
+  getExpensesWithOutlet(filters?: { date?: string; outletId?: string; type?: "harian" | "bulanan" }): Promise<ExpenseWithOutlet[]>;
 }
 
 export class DatabaseStorage implements IStorage {
