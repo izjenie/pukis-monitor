@@ -93,6 +93,30 @@ The application uses three primary tables:
 - Version-controlled migration files in `/migrations` directory
 - Push-based deployment model for schema changes
 
+### Data Integrity and Transaction Handling
+
+**Sales + Expenses Transaction Pattern**
+- Sales input page (sales-input.tsx) implements "best effort" rollback when saving sales with daily expenses
+- Uses multi-request pattern: one POST for sale, followed by N POSTs for expenses
+- On expense creation failure, performs compensating DELETE operations:
+  - Deletes the created sale record
+  - Deletes any already-created expense records
+  - Each DELETE wrapped in try-catch to ensure all cleanup attempts execute
+  - Always invalidates relevant query caches after rollback
+
+**Known Limitations**
+- Edge case: Network failure after database commit but before response receipt may leave orphaned records
+- Likelihood: Extremely rare in normal operation
+- Impact: Limited to individual transactions, no cascading corruption
+- Manual recovery: Query expenses by date/outlet to identify and remove orphans if needed
+- Future improvement: Implement POST /api/sales-with-expenses endpoint with database-level transaction support
+
+**Outlet Deletion**
+- Deletion dialog uses manual control pattern (regular Button with controlled state)
+- Dialog remains open on error to allow retry
+- Invalidates multiple query keys (outlets, sales, expenses) on successful delete
+- User receives clear feedback on success or failure
+
 ### Authentication and Authorization
 
 Currently, the application does not implement authentication or authorization mechanisms. This represents a future enhancement area where session-based auth or token-based auth could be added. The codebase includes session middleware setup (connect-pg-simple) suggesting planned session management.
