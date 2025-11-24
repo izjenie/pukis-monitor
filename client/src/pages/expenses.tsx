@@ -51,7 +51,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Filter } from "lucide-react";
+import { Plus, Pencil, Trash2, Filter, Receipt, CalendarRange } from "lucide-react";
 import type { Outlet, ExpenseWithOutlet } from "@shared/schema";
 
 export default function Expenses() {
@@ -64,7 +64,6 @@ export default function Expenses() {
   // Filters
   const [filterDate, setFilterDate] = useState("");
   const [filterOutletId, setFilterOutletId] = useState<string>("all");
-  const [filterType, setFilterType] = useState<string>("all");
 
   // Forms
   const addForm = useForm<InsertExpense>({
@@ -96,8 +95,7 @@ export default function Expenses() {
   const { data: expenses = [], isLoading } = useQuery<ExpenseWithOutlet[]>({
     queryKey: ["/api/expenses", { 
       date: filterDate, 
-      outletId: filterOutletId === "all" ? undefined : filterOutletId, 
-      type: filterType === "all" ? undefined : filterType 
+      outletId: filterOutletId === "all" ? undefined : filterOutletId
     }],
   });
 
@@ -197,10 +195,75 @@ export default function Expenses() {
     }).format(amount);
   };
 
+  const dailyExpenses = expenses.filter((exp) => exp.type === "harian");
+  const monthlyExpenses = expenses.filter((exp) => exp.type === "bulanan");
+
+  const renderExpenseTable = (expenses: typeof dailyExpenses, type: "harian" | "bulanan", testIdPrefix: string) => {
+    if (isLoading) {
+      return <div className="text-center py-8" data-testid={`${testIdPrefix}-loading-state`}>Loading...</div>;
+    }
+    
+    if (expenses.length === 0) {
+      return (
+        <div className="text-center py-8 text-muted-foreground" data-testid={`${testIdPrefix}-empty-state`}>
+          Belum ada data pengeluaran {type === "harian" ? "harian" : "bulanan"}
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tanggal</TableHead>
+              <TableHead>Outlet</TableHead>
+              <TableHead>Deskripsi</TableHead>
+              <TableHead className="text-right">Jumlah</TableHead>
+              <TableHead className="text-center">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {expenses.map((expense) => (
+              <TableRow key={expense.id} data-testid={`row-expense-${expense.id}`}>
+                <TableCell data-testid={`text-date-${expense.id}`}>{expense.date}</TableCell>
+                <TableCell data-testid={`text-outlet-${expense.id}`}>{expense.outletName || "-"}</TableCell>
+                <TableCell data-testid={`text-description-${expense.id}`}>{expense.description}</TableCell>
+                <TableCell className="text-right font-medium font-mono" data-testid={`text-amount-${expense.id}`}>
+                  {formatCurrency(expense.amount)}
+                </TableCell>
+                <TableCell className="text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditDialog(expense)}
+                      data-testid={`button-edit-${expense.id}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openDeleteDialog(expense)}
+                      data-testid={`button-delete-${expense.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Pengeluaran</h1>
+        <h1 className="text-3xl font-bold">Rekap Pengeluaran</h1>
         <Button onClick={() => setIsAddDialogOpen(true)} data-testid="button-add-expense">
           <Plus className="mr-2 h-4 w-4" />
           Tambah Pengeluaran
@@ -216,7 +279,7 @@ export default function Expenses() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="filter-date">Tanggal</Label>
               <Input
@@ -243,95 +306,33 @@ export default function Expenses() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="filter-type">Jenis</Label>
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger id="filter-type" data-testid="select-filter-type">
-                  <SelectValue placeholder="Semua Jenis" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Jenis</SelectItem>
-                  <SelectItem value="harian">Harian</SelectItem>
-                  <SelectItem value="bulanan">Bulanan</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Expenses Table */}
+      {/* Daily Expenses Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Data Pengeluaran</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-blue-600" />
+            Pengeluaran Harian
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8" data-testid="loading-state">Loading...</div>
-          ) : expenses.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground" data-testid="empty-state">
-              Belum ada data pengeluaran
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Outlet</TableHead>
-                    <TableHead>Jenis</TableHead>
-                    <TableHead>Deskripsi</TableHead>
-                    <TableHead className="text-right">Jumlah</TableHead>
-                    <TableHead className="text-center">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {expenses.map((expense) => (
-                    <TableRow key={expense.id} data-testid={`row-expense-${expense.id}`}>
-                      <TableCell data-testid={`text-date-${expense.id}`}>{expense.date}</TableCell>
-                      <TableCell data-testid={`text-outlet-${expense.id}`}>{expense.outletName || "-"}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            expense.type === "harian"
-                              ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                              : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                          }`}
-                          data-testid={`text-type-${expense.id}`}
-                        >
-                          {expense.type === "harian" ? "Harian" : "Bulanan"}
-                        </span>
-                      </TableCell>
-                      <TableCell data-testid={`text-description-${expense.id}`}>{expense.description}</TableCell>
-                      <TableCell className="text-right font-medium" data-testid={`text-amount-${expense.id}`}>
-                        {formatCurrency(expense.amount)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(expense)}
-                            data-testid={`button-edit-${expense.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openDeleteDialog(expense)}
-                            data-testid={`button-delete-${expense.id}`}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          {renderExpenseTable(dailyExpenses, "harian", "daily")}
+        </CardContent>
+      </Card>
+
+      {/* Monthly Expenses Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarRange className="h-5 w-5 text-purple-600" />
+            Pengeluaran Bulanan
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {renderExpenseTable(monthlyExpenses, "bulanan", "monthly")}
         </CardContent>
       </Card>
 

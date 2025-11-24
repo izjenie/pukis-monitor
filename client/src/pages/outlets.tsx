@@ -15,6 +15,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -35,12 +44,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, Store, Edit, Loader2, DollarSign } from "lucide-react";
+import { Plus, Store, Edit, Loader2, DollarSign, Trash2 } from "lucide-react";
 
 export default function Outlets() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOutlet, setEditingOutlet] = useState<Outlet | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingOutlet, setDeletingOutlet] = useState<Outlet | null>(null);
 
   const { data: outlets, isLoading } = useQuery<Outlet[]>({
     queryKey: ["/api/outlets"],
@@ -100,6 +111,30 @@ export default function Outlets() {
     },
   });
 
+  const deleteOutletMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/outlets/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Berhasil!",
+        description: "Outlet berhasil dihapus",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/outlets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      setIsDeleteDialogOpen(false);
+      setDeletingOutlet(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Gagal menghapus outlet",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: InsertOutlet) => {
     if (editingOutlet) {
       updateOutletMutation.mutate({ id: editingOutlet.id, data });
@@ -126,6 +161,22 @@ export default function Outlets() {
     });
   };
 
+  const handleDelete = (outlet: Outlet) => {
+    setDeletingOutlet(outlet);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    if (!deletingOutlet) return;
+    
+    try {
+      await deleteOutletMutation.mutateAsync(deletingOutlet.id);
+    } catch (error) {
+      console.error("Failed to delete outlet:", error);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -135,8 +186,9 @@ export default function Outlets() {
     }).format(amount);
   };
 
-  const formatCogsInput = (value: number) => {
-    return value === 0 ? "" : value.toLocaleString("id-ID");
+  const formatCogsInput = (value: number | undefined) => {
+    if (!value || value === 0) return "";
+    return value.toLocaleString("id-ID");
   };
 
   const handleCogsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -302,16 +354,28 @@ export default function Outlets() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(outlet)}
-                          className="gap-2"
-                          data-testid={`button-edit-${outlet.id}`}
-                        >
-                          <Edit className="h-4 w-4" />
-                          Edit
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(outlet)}
+                            className="gap-2"
+                            data-testid={`button-edit-${outlet.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(outlet)}
+                            className="gap-2 text-destructive hover:text-destructive"
+                            data-testid={`button-delete-${outlet.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Hapus
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -341,6 +405,43 @@ export default function Outlets() {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Outlet?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus outlet{" "}
+              <span className="font-semibold">{deletingOutlet?.name}</span>?
+              <br />
+              <br />
+              Tindakan ini tidak dapat dibatalkan. Semua data penjualan dan pengeluaran 
+              yang terkait dengan outlet ini akan tetap ada, namun outlet tidak akan 
+              muncul dalam pilihan input data baru.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              disabled={deleteOutletMutation.isPending}
+              data-testid="button-cancel-delete"
+            >
+              Batal
+            </AlertDialogCancel>
+            <Button
+              onClick={confirmDelete}
+              disabled={deleteOutletMutation.isPending}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteOutletMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Hapus
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

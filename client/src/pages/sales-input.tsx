@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertSalesSchema, type InsertSales, type Outlet } from "@shared/schema";
+import { insertSalesSchema, type InsertSales, type Outlet, type InsertExpense } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -25,15 +25,22 @@ import { CurrencyInput } from "@/components/currency-input";
 import { NumberInput } from "@/components/number-input";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Loader2, Wallet, Smartphone, ShoppingBag, Store as StoreIcon } from "lucide-react";
+import { Loader2, Wallet, Smartphone, ShoppingBag, Store as StoreIcon, Plus, Trash2, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { SiGrab, SiShopee, SiTiktok } from "react-icons/si";
+
+interface DailyExpense {
+  id: string;
+  description: string;
+  amount: number;
+}
 
 export default function SalesInput() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<string>(
     format(new Date(), "yyyy-MM-dd")
   );
+  const [dailyExpenses, setDailyExpenses] = useState<DailyExpense[]>([]);
 
   const { data: outlets, isLoading: outletsLoading } = useQuery<Outlet[]>({
     queryKey: ["/api/outlets"],
@@ -62,42 +69,13 @@ export default function SalesInput() {
     mutationFn: async (data: InsertSales) => {
       return await apiRequest("POST", "/api/sales", data);
     },
-    onSuccess: () => {
-      toast({
-        title: "Berhasil!",
-        description: "Data penjualan berhasil disimpan",
-      });
-      form.reset({
-        outletId: form.getValues("outletId"),
-        date: selectedDate,
-        cash: 0,
-        qris: 0,
-        grab: 0,
-        gofood: 0,
-        shopee: 0,
-        tiktok: 0,
-        totalSold: 0,
-        remaining: 0,
-        returned: 0,
-        totalProduction: 0,
-        soldOutTime: "",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Gagal menyimpan",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
   });
 
   useEffect(() => {
     form.setValue("date", selectedDate);
   }, [selectedDate, form]);
 
-  const onSubmit = (data: InsertSales) => {
+  const onSubmit = async (data: InsertSales) => {
     if (!data.outletId) {
       toast({
         title: "Outlet belum dipilih",
@@ -116,7 +94,83 @@ export default function SalesInput() {
       return;
     }
 
-    createSalesMutation.mutate(data);
+    try {
+      const sale: any = await createSalesMutation.mutateAsync(data);
+      const createdExpenseIds: string[] = [];
+
+      if (dailyExpenses.length > 0) {
+        try {
+          for (const expense of dailyExpenses) {
+            const expenseData: InsertExpense = {
+              outletId: data.outletId,
+              date: selectedDate,
+              type: "harian",
+              description: expense.description,
+              amount: expense.amount,
+            };
+            const createdExpense: any = await apiRequest("POST", "/api/expenses", expenseData);
+            createdExpenseIds.push(createdExpense.id);
+          }
+        } catch (expenseError) {
+          try {
+            await apiRequest("DELETE", `/api/sales/${sale.id}`);
+          } catch (saleDeleteError) {
+            console.error("Failed to delete sale during rollback:", saleDeleteError);
+          }
+          
+          for (const expenseId of createdExpenseIds) {
+            try {
+              await apiRequest("DELETE", `/api/expenses/${expenseId}`);
+            } catch (expenseDeleteError) {
+              console.error("Failed to delete expense during rollback:", expenseDeleteError);
+            }
+          }
+
+          queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+          
+          toast({
+            title: "Gagal menyimpan",
+            description: "Gagal menyimpan pengeluaran. Rollback dilakukan, silakan periksa data Anda.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+
+      toast({
+        title: "Berhasil!",
+        description: dailyExpenses.length > 0 
+          ? "Data penjualan dan pengeluaran berhasil disimpan"
+          : "Data penjualan berhasil disimpan",
+      });
+
+      form.reset({
+        outletId: form.getValues("outletId"),
+        date: selectedDate,
+        cash: 0,
+        qris: 0,
+        grab: 0,
+        gofood: 0,
+        shopee: 0,
+        tiktok: 0,
+        totalSold: 0,
+        remaining: 0,
+        returned: 0,
+        totalProduction: 0,
+        soldOutTime: "",
+      });
+      setDailyExpenses([]);
+    } catch (error: any) {
+      toast({
+        title: "Gagal menyimpan",
+        description: error.message || "Terjadi kesalahan saat menyimpan data",
+        variant: "destructive",
+      });
+    }
   };
 
   const totalRevenue =
@@ -126,6 +180,27 @@ export default function SalesInput() {
     (form.watch("gofood") || 0) +
     (form.watch("shopee") || 0) +
     (form.watch("tiktok") || 0);
+
+  const addExpense = () => {
+    setDailyExpenses([
+      ...dailyExpenses,
+      { id: crypto.randomUUID(), description: "", amount: 0 },
+    ]);
+  };
+
+  const removeExpense = (id: string) => {
+    setDailyExpenses(dailyExpenses.filter((exp) => exp.id !== id));
+  };
+
+  const updateExpense = (id: string, field: "description" | "amount", value: string | number) => {
+    setDailyExpenses(
+      dailyExpenses.map((exp) =>
+        exp.id === id ? { ...exp, [field]: value } : exp
+      )
+    );
+  };
+
+  const totalExpenses = dailyExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
 
   if (outletsLoading) {
     return (
@@ -439,6 +514,102 @@ export default function SalesInput() {
                   </FormItem>
                 )}
               />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-muted-foreground" />
+                <CardTitle>Pengeluaran Harian (Opsional)</CardTitle>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addExpense}
+                data-testid="button-add-expense-item"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Tambah
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {dailyExpenses.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Belum ada pengeluaran. Klik "Tambah" untuk menambahkan pengeluaran harian.
+                </p>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    {dailyExpenses.map((expense, index) => (
+                      <div
+                        key={expense.id}
+                        className="grid grid-cols-1 md:grid-cols-[1fr,200px,auto] gap-3 p-3 border rounded-lg"
+                        data-testid={`expense-item-${index}`}
+                      >
+                        <div>
+                          <label className="text-sm font-medium mb-1.5 block">
+                            Deskripsi
+                          </label>
+                          <Input
+                            placeholder="Misal: Listrik, Air, Gas, dll"
+                            value={expense.description}
+                            onChange={(e) =>
+                              updateExpense(expense.id, "description", e.target.value)
+                            }
+                            className="min-h-10"
+                            data-testid={`input-expense-description-${index}`}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1.5 block">
+                            Jumlah
+                          </label>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={expense.amount || ""}
+                            onChange={(e) =>
+                              updateExpense(
+                                expense.id,
+                                "amount",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="min-h-10 font-mono"
+                            data-testid={`input-expense-amount-${index}`}
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeExpense(expense.id)}
+                            className="text-destructive hover:text-destructive"
+                            data-testid={`button-remove-expense-${index}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pt-3 border-t flex justify-between items-center">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Total Pengeluaran
+                    </span>
+                    <span className="text-lg font-bold font-mono text-destructive" data-testid="text-total-expenses">
+                      {new Intl.NumberFormat("id-ID", {
+                        style: "currency",
+                        currency: "IDR",
+                        minimumFractionDigits: 0,
+                      }).format(totalExpenses)}
+                    </span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
