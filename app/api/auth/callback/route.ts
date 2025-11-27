@@ -3,6 +3,9 @@ import * as client from "openid-client";
 import { getOidcConfig, getSession, upsertUserFromClaims } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
+  // Get Replit domain at the top level so it's accessible in catch block
+  const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0];
+  
   try {
     const config = await getOidcConfig();
     const session = await getSession();
@@ -11,24 +14,42 @@ export async function GET(request: NextRequest) {
     const expectedState = session.state;
     
     if (!codeVerifier) {
-      return NextResponse.redirect(new URL("/api/auth/login", request.url));
+      console.log("No code verifier found in session");
+      const loginUrl = replitDomain 
+        ? `https://${replitDomain}/api/auth/login`
+        : new URL("/api/auth/login", request.url).href;
+      return NextResponse.redirect(loginUrl);
     }
     
     const error = request.nextUrl.searchParams.get("error");
     if (error) {
       console.error("OAuth2 error:", error);
-      return NextResponse.redirect(new URL("/api/auth/login", request.url));
+      const loginUrl = replitDomain 
+        ? `https://${replitDomain}/api/auth/login`
+        : new URL("/api/auth/login", request.url).href;
+      return NextResponse.redirect(loginUrl);
     }
     
     const code = request.nextUrl.searchParams.get("code");
+    const state = request.nextUrl.searchParams.get("state");
     if (!code) {
       console.error("No code in callback");
-      return NextResponse.redirect(new URL("/api/auth/login", request.url));
+      const loginUrl = replitDomain 
+        ? `https://${replitDomain}/api/auth/login`
+        : new URL("/api/auth/login", request.url).href;
+      return NextResponse.redirect(loginUrl);
     }
+    
+    // Build the correct callback URL using REPLIT_DOMAINS
+    const callbackUrl = replitDomain 
+      ? `https://${replitDomain}/api/auth/callback?code=${code}&state=${state}&iss=${encodeURIComponent(request.nextUrl.searchParams.get("iss") || "")}`
+      : request.url;
+    
+    console.log("Token exchange URL:", callbackUrl);
     
     const tokenResponse = await client.authorizationCodeGrant(
       config,
-      new URL(request.url),
+      new URL(callbackUrl),
       {
         pkceCodeVerifier: codeVerifier,
         expectedState: expectedState,
@@ -38,7 +59,10 @@ export async function GET(request: NextRequest) {
     
     const claims = tokenResponse.claims();
     if (!claims) {
-      return NextResponse.redirect(new URL("/api/auth/login", request.url));
+      const loginUrl = replitDomain 
+        ? `https://${replitDomain}/api/auth/login`
+        : new URL("/api/auth/login", request.url).href;
+      return NextResponse.redirect(loginUrl);
     }
     
     const user = await upsertUserFromClaims(claims);
@@ -58,9 +82,18 @@ export async function GET(request: NextRequest) {
     delete session.state;
     await session.save();
     
-    return NextResponse.redirect(new URL("/", request.url));
+    // Redirect to the correct Replit domain
+    const homeUrl = replitDomain 
+      ? `https://${replitDomain}/`
+      : new URL("/", request.url).href;
+    
+    return NextResponse.redirect(homeUrl);
   } catch (error) {
     console.error("Callback error:", error);
-    return NextResponse.redirect(new URL("/api/auth/login", request.url));
+    // Redirect to login on the correct domain
+    const loginUrl = replitDomain 
+      ? `https://${replitDomain}/api/auth/login`
+      : new URL("/api/auth/login", request.url).href;
+    return NextResponse.redirect(loginUrl);
   }
 }
