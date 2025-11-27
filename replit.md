@@ -15,9 +15,10 @@ Preferred communication style: Simple, everyday language.
 ### Frontend Architecture
 
 **Framework & Routing**
+- Next.js 14 with App Router for full-stack React development
 - React 18 with TypeScript for type-safe component development
-- Wouter for lightweight client-side routing
-- Vite as the build tool and development server
+- File-based routing via Next.js App Router (`app/` directory)
+- Server-side rendering (SSR) and client components with "use client" directive
 
 **State Management**
 - TanStack Query (React Query) for server state management and caching
@@ -38,9 +39,9 @@ Preferred communication style: Simple, everyday language.
 ### Backend Architecture
 
 **Server Framework**
-- Express.js for REST API endpoints
+- Next.js API Route Handlers in `app/api/` directory
 - Node.js runtime with ES modules
-- Separate development (Vite middleware integration) and production servers
+- Serverless-compatible architecture
 
 **API Design**
 - RESTful endpoints following resource-based URL patterns
@@ -54,19 +55,66 @@ Preferred communication style: Simple, everyday language.
 - WebSocket support via the @neondatabase/serverless driver
 - Schema-first approach with TypeScript type inference
 
+### Project Structure
+
+```
+app/                          # Next.js App Router pages
+├── api/                      # API Route Handlers
+│   ├── auth/                 # Authentication endpoints
+│   │   ├── callback/route.ts # OAuth callback
+│   │   ├── login/route.ts    # Login redirect
+│   │   ├── logout/route.ts   # Logout handler
+│   │   └── user/route.ts     # Current user info
+│   ├── outlets/              # Outlet CRUD
+│   ├── sales/                # Sales CRUD + MTD
+│   └── expenses/             # Expense CRUD
+├── dashboard-harian/page.tsx # Daily dashboard
+├── dashboard-mtd/page.tsx    # MTD dashboard
+├── outlets/page.tsx          # Outlet management
+├── expenses/page.tsx         # Expense management
+├── layout.tsx                # Root layout with Providers
+├── page.tsx                  # Sales input (home page)
+└── not-found.tsx             # 404 page
+
+src/
+├── components/               # React components
+│   ├── ui/                   # Shadcn/ui components
+│   ├── app-sidebar.tsx       # Navigation sidebar
+│   ├── authenticated-layout.tsx  # Auth wrapper
+│   └── providers.tsx         # QueryClient, Toaster
+├── db/
+│   ├── db.ts                 # Database connection
+│   └── storage.ts            # Data access layer
+├── hooks/                    # Custom React hooks
+└── lib/
+    ├── auth.ts               # Replit Auth (openid-client v6)
+    ├── queryClient.ts        # TanStack Query setup
+    └── utils.ts              # Utility functions
+
+shared/
+└── schema.ts                 # Drizzle schema + Zod types
+```
+
 ### Data Storage Solutions
 
 **Database Schema**
 
-The application uses three primary tables:
+The application uses four primary tables:
 
-1. **outlets** - Stores outlet master data
+1. **users** - Stores user authentication data
+   - Unique identifier (from Replit Auth)
+   - Email, first name, last name
+   - Profile image URL
+   - Role (owner, admin_outlet, finance)
+   - Creation timestamp
+
+2. **outlets** - Stores outlet master data
    - Unique identifier (UUID)
    - Outlet name
    - Cost of goods sold (COGS) per piece for margin calculations
    - Creation timestamp
 
-2. **sales** - Daily sales transaction records
+3. **sales** - Daily sales transaction records
    - Links to outlet via foreign key relationship
    - Date field for daily aggregation (YYYY-MM-DD format)
    - Multiple payment channel columns (cash, QRIS, Grab, GoFood, Shopee, TikTok)
@@ -74,14 +122,13 @@ The application uses three primary tables:
    - Optional sold-out time tracking
    - Automatic timestamp management
 
-3. **expenses** - Daily and monthly expense records
+4. **expenses** - Daily and monthly expense records
    - Links to outlet via foreign key relationship
    - Date field (YYYY-MM-DD format)
    - Type field distinguishing between daily ("harian") and monthly ("bulanan") expenses
    - Description field for expense details
    - Amount field for expense value (validated >= 0)
    - Automatic timestamp management
-   - Forms use react-hook-form with Zod validation for data integrity
 
 **Calculated Fields Strategy**
 - Gross margin and percentages computed in application layer rather than database
@@ -91,12 +138,12 @@ The application uses three primary tables:
 **Schema Evolution**
 - Drizzle Kit for schema migrations
 - Version-controlled migration files in `/migrations` directory
-- Push-based deployment model for schema changes
+- Push-based deployment model for schema changes (`npm run db:push`)
 
 ### Data Integrity and Transaction Handling
 
 **Sales + Expenses Transaction Pattern**
-- Sales input page (sales-input.tsx) implements "best effort" rollback when saving sales with daily expenses
+- Sales input page implements "best effort" rollback when saving sales with daily expenses
 - Uses multi-request pattern: one POST for sale, followed by N POSTs for expenses
 - On expense creation failure, performs compensating DELETE operations:
   - Deletes the created sale record
@@ -119,20 +166,26 @@ The application uses three primary tables:
 
 ### Authentication and Authorization
 
-Currently, the application does not implement authentication or authorization mechanisms. This represents a future enhancement area where session-based auth or token-based auth could be added. The codebase includes session middleware setup (connect-pg-simple) suggesting planned session management.
+- Replit Auth integration via openid-client v6
+- PKCE flow with proper code_verifier/code_challenge
+- State parameter for CSRF protection
+- Iron-session for secure session management
+- Role-based access: owner, admin_outlet, finance
 
 ### External Dependencies
 
 **Third-Party Services**
 - **Neon Database** - Serverless PostgreSQL database hosting with WebSocket support for real-time connections
+- **Replit Auth** - OpenID Connect authentication provider
 - **Google Fonts** - CDN delivery of Inter and JetBrains Mono typefaces
 
 **NPM Packages - Core**
+- `next` - Full-stack React framework with App Router
 - `@neondatabase/serverless` - Database driver with connection pooling
 - `drizzle-orm` - Type-safe ORM with schema definition and query builder
 - `drizzle-zod` - Automatic Zod schema generation from Drizzle schemas
-- `express` - HTTP server framework
-- `connect-pg-simple` - PostgreSQL session store (currently unused)
+- `openid-client` v6 - OAuth/OIDC client for Replit Auth
+- `iron-session` - Encrypted session management
 
 **NPM Packages - Frontend**
 - `@tanstack/react-query` - Async state management and data fetching
@@ -150,21 +203,35 @@ Currently, the application does not implement authentication or authorization me
 - `clsx` & `tailwind-merge` - Conditional class name utilities
 
 **Development Tools**
-- `vite` - Build tool and dev server
-- `@vitejs/plugin-react` - React Fast Refresh support
 - `typescript` - Type checking and compilation
-- `tsx` - TypeScript execution for development server
-- `esbuild` - Server bundle creation for production
-- Replit-specific plugins for development experience enhancements
+- `drizzle-kit` - Database migration tools
 
 **API Integration Pattern**
 - Custom `apiRequest` wrapper in `queryClient.ts` centralizes fetch logic
 - Query key construction via `buildQueryUrl` supporting filter parameters
 - Automatic error handling with response status checking
-- Credentials included for future session support
+- Credentials included for session support
 
 **Deployment Configuration**
 - Environment variable `DATABASE_URL` required for database connection
-- Production build combines Vite client build and esbuild server bundle
-- Static file serving in production mode from `dist/public`
-- Development mode uses Vite middleware for HMR
+- Next.js production build via `next build`
+- Run with `npx next dev --port 5000` for development
+- Run with `npx next start --port 5000` for production
+
+## Running the Application
+
+**Development:**
+```bash
+npx next dev --port 5000
+```
+
+**Production Build:**
+```bash
+npx next build
+npx next start --port 5000
+```
+
+**Database Migration:**
+```bash
+npm run db:push
+```
