@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { type SalesWithCalculations, type Outlet } from "@shared/schema";
+import { type SalesWithCalculations, type Outlet, insertSalesSchema, type InsertSales } from "@shared/schema";
 import { MetricCard } from "@/components/metric-card";
 import { WhatsAppSummary } from "@/components/whatsapp-summary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -25,15 +28,40 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { AuthenticatedLayout } from "@/components/authenticated-layout";
-import { DollarSign, TrendingUp, Package, Clock, Loader2, Calendar } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  DollarSign, TrendingUp, Package, Clock, Loader2, Calendar, 
+  Edit, CreditCard, Smartphone, ShoppingBag
+} from "lucide-react";
+import { SiGrab, SiGojek, SiShopee, SiTiktok } from "react-icons/si";
 
 function DashboardHarianContent() {
+  const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<string>(
     format(new Date(), "yyyy-MM-dd")
   );
   const [selectedOutlet, setSelectedOutlet] = useState<string>("all");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingSale, setEditingSale] = useState<SalesWithCalculations | null>(null);
 
   const { data: outlets, isLoading: outletsLoading } = useQuery<Outlet[]>({
     queryKey: ["/api/outlets"],
@@ -43,6 +71,48 @@ function DashboardHarianContent() {
     SalesWithCalculations[]
   >({
     queryKey: ["/api/sales", { date: selectedDate }],
+  });
+
+  const editForm = useForm<InsertSales>({
+    resolver: zodResolver(insertSalesSchema),
+    defaultValues: {
+      outletId: "",
+      date: selectedDate,
+      cash: 0,
+      qris: 0,
+      grab: 0,
+      gofood: 0,
+      shopee: 0,
+      tiktok: 0,
+      totalSold: 0,
+      remaining: 0,
+      returned: 0,
+      totalProduction: 0,
+      soldOutTime: "",
+    },
+  });
+
+  const updateSalesMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertSales> }) => {
+      return await apiRequest("PATCH", `/api/sales/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Berhasil!",
+        description: "Data penjualan berhasil diperbarui",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      setIsEditDialogOpen(false);
+      setEditingSale(null);
+      editForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Gagal memperbarui data",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const isLoading = outletsLoading || salesLoading;
@@ -113,6 +183,44 @@ function DashboardHarianContent() {
   ) || { grossMargin: 0, sold: 0 };
 
   const selectedSale = filteredSales?.find((s) => s.outletId === selectedOutlet);
+
+  const handleEditSale = (sale: SalesWithCalculations) => {
+    setEditingSale(sale);
+    editForm.reset({
+      outletId: sale.outletId,
+      date: sale.date,
+      cash: sale.cash,
+      qris: sale.qris,
+      grab: sale.grab,
+      gofood: sale.gofood,
+      shopee: sale.shopee,
+      tiktok: sale.tiktok,
+      totalSold: sale.totalSold,
+      remaining: sale.remaining,
+      returned: sale.returned,
+      totalProduction: sale.totalProduction,
+      soldOutTime: sale.soldOutTime || "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const onEditSubmit = (data: InsertSales) => {
+    if (!editingSale) return;
+    updateSalesMutation.mutate({ id: editingSale.id, data });
+  };
+
+  const formatInputValue = (value: number | undefined) => {
+    if (!value || value === 0) return "";
+    return value.toLocaleString("id-ID");
+  };
+
+  const handleCurrencyChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: keyof InsertSales
+  ) => {
+    const val = e.target.value.replace(/[^0-9]/g, "");
+    editForm.setValue(field, val === "" ? 0 : parseInt(val));
+  };
 
   if (isLoading) {
     return (
@@ -240,6 +348,7 @@ function DashboardHarianContent() {
                     <TableHead className="text-right font-semibold">Terjual</TableHead>
                     <TableHead className="text-right font-semibold">GM</TableHead>
                     <TableHead className="text-right font-semibold">GM %</TableHead>
+                    <TableHead className="text-center font-semibold w-20">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -259,6 +368,16 @@ function DashboardHarianContent() {
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         {sale.grossMarginPercentage.toFixed(1)}%
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditSale(sale)}
+                          data-testid={`button-edit-sale-${sale.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -299,6 +418,322 @@ function DashboardHarianContent() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Data Penjualan</DialogTitle>
+            <DialogDescription>
+              {editingSale && (
+                <span className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline">{editingSale.outletName}</Badge>
+                  <Badge variant="secondary">{format(new Date(editingSale.date), "d MMMM yyyy", { locale: localeId })}</Badge>
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6">
+              <div className="space-y-4">
+                <h4 className="font-medium flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Pendapatan per Channel
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="cash"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <CreditCard className="h-3 w-3" /> Cash
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={formatInputValue(field.value)}
+                              onChange={(e) => handleCurrencyChange(e, "cash")}
+                              className="pl-8 text-right font-mono"
+                              data-testid="input-edit-cash"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="qris"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Smartphone className="h-3 w-3" /> QRIS
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={formatInputValue(field.value)}
+                              onChange={(e) => handleCurrencyChange(e, "qris")}
+                              className="pl-8 text-right font-mono"
+                              data-testid="input-edit-qris"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="grab"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <SiGrab className="h-3 w-3 text-green-600" /> Grab
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={formatInputValue(field.value)}
+                              onChange={(e) => handleCurrencyChange(e, "grab")}
+                              className="pl-8 text-right font-mono"
+                              data-testid="input-edit-grab"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="gofood"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <SiGojek className="h-3 w-3 text-green-700" /> GoFood
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={formatInputValue(field.value)}
+                              onChange={(e) => handleCurrencyChange(e, "gofood")}
+                              className="pl-8 text-right font-mono"
+                              data-testid="input-edit-gofood"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="shopee"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <SiShopee className="h-3 w-3 text-orange-500" /> Shopee
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={formatInputValue(field.value)}
+                              onChange={(e) => handleCurrencyChange(e, "shopee")}
+                              className="pl-8 text-right font-mono"
+                              data-testid="input-edit-shopee"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="tiktok"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <SiTiktok className="h-3 w-3" /> TikTok
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={formatInputValue(field.value)}
+                              onChange={(e) => handleCurrencyChange(e, "tiktok")}
+                              className="pl-8 text-right font-mono"
+                              data-testid="input-edit-tiktok"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Data Produksi & Penjualan
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="totalProduction"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Total Produksi</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            className="font-mono"
+                            data-testid="input-edit-production"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="totalSold"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Terjual</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            className="font-mono"
+                            data-testid="input-edit-sold"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="remaining"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sisa</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            className="font-mono"
+                            data-testid="input-edit-remaining"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="returned"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Return</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            className="font-mono"
+                            data-testid="input-edit-returned"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <FormField
+                control={editForm.control}
+                name="soldOutTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Waktu Sold Out (opsional)
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="time"
+                        {...field}
+                        value={field.value || ""}
+                        className="w-40"
+                        data-testid="input-edit-soldout-time"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditDialogOpen(false);
+                    setEditingSale(null);
+                    editForm.reset();
+                  }}
+                  data-testid="button-cancel-edit"
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateSalesMutation.isPending}
+                  data-testid="button-save-edit"
+                >
+                  {updateSalesMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Simpan Perubahan
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

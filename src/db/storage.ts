@@ -34,6 +34,7 @@ export interface IStorage {
   createSales(sales: InsertSales): Promise<Sales>;
   updateSales(id: string, sales: Partial<InsertSales>): Promise<Sales | undefined>;
   deleteSales(id: string): Promise<boolean>;
+  deleteSalesByOutlet(outletId: string): Promise<number>;
 
   getSalesWithCalculations(filters?: {
     date?: string;
@@ -42,6 +43,17 @@ export interface IStorage {
 
   getMTDSales(date: string, outletId?: string): Promise<SalesWithCalculations[]>;
   getMTDSummary(date: string): Promise<MTDSummary[]>;
+  getMTDExpenses(date: string, outletId?: string): Promise<{ daily: number; monthly: number }>;
+  getOutletMTDSummary(outletId: string, date: string): Promise<{
+    totalSold: number;
+    totalRevenue: number;
+    totalCogs: number;
+    totalDailyExpenses: number;
+    totalMonthlyExpenses: number;
+    netProfit: number;
+    periodStart: string;
+    periodEnd: string;
+  }>;
 
   // Expense operations
   getExpenses(filters?: { date?: string; outletId?: string; type?: "harian" | "bulanan" }): Promise<Expense[]>;
@@ -104,8 +116,87 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteOutlet(id: string): Promise<boolean> {
+    // First delete all related sales and expenses (cascade delete)
+    await db.delete(sales).where(eq(sales.outletId, id));
+    await db.delete(expenses).where(eq(expenses.outletId, id));
+    
+    // Then delete the outlet
     const result = await db.delete(outlets).where(eq(outlets.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Delete all sales for an outlet
+  async deleteSalesByOutlet(outletId: string): Promise<number> {
+    const result = await db.delete(sales).where(eq(sales.outletId, outletId));
+    return result.rowCount || 0;
+  }
+
+  // Get MTD expenses for calculating profit/loss
+  async getMTDExpenses(date: string, outletId?: string): Promise<{ daily: number; monthly: number }> {
+    const currentDate = new Date(date);
+    const { start, end } = this.getMTDPeriod(currentDate);
+    
+    const startDateStr = start.toISOString().split("T")[0];
+    const endDateStr = end.toISOString().split("T")[0];
+    
+    const conditions = [
+      gte(expenses.date, startDateStr),
+      lte(expenses.date, endDateStr),
+    ];
+    
+    if (outletId) {
+      conditions.push(eq(expenses.outletId, outletId));
+    }
+    
+    const mtdExpenses = await db
+      .select()
+      .from(expenses)
+      .where(and(...conditions));
+    
+    const daily = mtdExpenses
+      .filter(e => e.type === "harian")
+      .reduce((sum, e) => sum + e.amount, 0);
+    
+    const monthly = mtdExpenses
+      .filter(e => e.type === "bulanan")
+      .reduce((sum, e) => sum + e.amount, 0);
+    
+    return { daily, monthly };
+  }
+
+  // Get outlet summary for a specific MTD period
+  async getOutletMTDSummary(outletId: string, date: string): Promise<{
+    totalSold: number;
+    totalRevenue: number;
+    totalCogs: number;
+    totalDailyExpenses: number;
+    totalMonthlyExpenses: number;
+    netProfit: number;
+    periodStart: string;
+    periodEnd: string;
+  }> {
+    const currentDate = new Date(date);
+    const { start, end } = this.getMTDPeriod(currentDate);
+    
+    const mtdSales = await this.getMTDSales(date, outletId);
+    const mtdExpenses = await this.getMTDExpenses(date, outletId);
+    
+    const totalSold = mtdSales.reduce((sum, s) => sum + s.totalSold, 0);
+    const totalRevenue = mtdSales.reduce((sum, s) => sum + s.totalRevenue, 0);
+    const totalCogs = mtdSales.reduce((sum, s) => sum + s.cogsSold, 0);
+    
+    const netProfit = totalRevenue - totalCogs - mtdExpenses.daily - mtdExpenses.monthly;
+    
+    return {
+      totalSold,
+      totalRevenue,
+      totalCogs,
+      totalDailyExpenses: mtdExpenses.daily,
+      totalMonthlyExpenses: mtdExpenses.monthly,
+      netProfit,
+      periodStart: start.toISOString().split("T")[0],
+      periodEnd: end.toISOString().split("T")[0],
+    };
   }
 
   async getSales(filters?: {
