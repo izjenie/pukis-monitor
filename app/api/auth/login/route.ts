@@ -7,14 +7,13 @@ export async function GET(request: NextRequest) {
     const config = await getOidcConfig();
     const session = await getSession();
     
-    // Get the correct callback URL - use x-forwarded headers for Replit proxy
-    const forwardedHost = request.headers.get("x-forwarded-host");
-    const forwardedProto = request.headers.get("x-forwarded-proto");
-    const hostname = forwardedHost || request.headers.get("host") || request.nextUrl.hostname;
-    // Always use https on Replit (check if it's a replit.dev domain or forwarded as https)
-    const isReplit = hostname.includes("replit.dev") || hostname.includes("replit.app");
-    const protocol = forwardedProto || (isReplit ? "https" : (process.env.NODE_ENV === "production" ? "https" : "http"));
-    const callbackUrl = `${protocol}://${hostname}/api/auth/callback`;
+    // Use REPLIT_DOMAINS environment variable for the correct callback URL
+    const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0];
+    const callbackUrl = replitDomain 
+      ? `https://${replitDomain}/api/auth/callback`
+      : `${request.nextUrl.origin}/api/auth/callback`;
+    
+    console.log("Callback URL:", callbackUrl);
     
     const codeVerifier = client.randomPKCECodeVerifier();
     const codeChallenge = await client.calculatePKCECodeChallenge(codeVerifier);
