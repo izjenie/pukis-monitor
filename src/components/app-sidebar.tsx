@@ -1,5 +1,8 @@
+"use client";
+
 import { Home, TrendingUp, Calendar, Store, Wallet } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -45,7 +48,7 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
-  const [location] = useLocation();
+  const pathname = usePathname();
 
   return (
     <Sidebar>
@@ -60,7 +63,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={location === item.url}
+                    isActive={pathname === item.url}
                     data-testid={item.testId}
                   >
                     <Link href={item.url}>
