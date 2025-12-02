@@ -154,7 +154,8 @@ export type OutletRanking = {
 };
 
 // Expenses type enum
-export type ExpenseType = "harian" | "bulanan";
+// "gaji" type is only visible to owner role
+export type ExpenseType = "harian" | "bulanan" | "gaji";
 
 // Expenses table
 export const expenses = pgTable("expenses", {
@@ -174,8 +175,8 @@ export const insertExpenseSchema = createInsertSchema(expenses).omit({
   updatedAt: true,
 }).extend({
   amount: z.number().min(0, "Jumlah harus >= 0"),
-  type: z.enum(["harian", "bulanan"], {
-    errorMap: () => ({ message: "Jenis harus 'harian' atau 'bulanan'" }),
+  type: z.enum(["harian", "bulanan", "gaji"], {
+    errorMap: () => ({ message: "Jenis harus 'harian', 'bulanan', atau 'gaji'" }),
   }),
   description: z.string().min(1, "Deskripsi harus diisi"),
 });
@@ -183,8 +184,8 @@ export const insertExpenseSchema = createInsertSchema(expenses).omit({
 export const updateExpenseSchema = z.object({
   outletId: z.string().optional(),
   date: z.string().optional(),
-  type: z.enum(["harian", "bulanan"], {
-    errorMap: () => ({ message: "Jenis harus 'harian' atau 'bulanan'" }),
+  type: z.enum(["harian", "bulanan", "gaji"], {
+    errorMap: () => ({ message: "Jenis harus 'harian', 'bulanan', atau 'gaji'" }),
   }).optional(),
   description: z.string().min(1, "Deskripsi harus diisi").optional(),
   amount: z.number().min(0, "Jumlah harus >= 0").optional(),

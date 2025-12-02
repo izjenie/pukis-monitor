@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { insertExpenseSchema, type InsertExpense, type SalesWithCalculations } from "@shared/schema";
+import { insertExpenseSchema, type InsertExpense, type SalesWithCalculations, type User } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +60,7 @@ import { AuthenticatedLayout } from "@/components/authenticated-layout";
 import { 
   Plus, Pencil, Trash2, Receipt, CalendarRange, Store, 
   Calendar, DollarSign, TrendingUp, Package, Loader2, Minus,
-  ArrowRight, Info
+  ArrowRight, Info, Banknote
 } from "lucide-react";
 import type { Outlet, ExpenseWithOutlet } from "@shared/schema";
 
@@ -74,6 +74,13 @@ function ExpensesContent() {
   const [selectedOutletId, setSelectedOutletId] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"));
+
+  const { data: user } = useQuery<User | null>({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
+
+  const canViewSalary = user?.role === "owner" || user?.role === "super_admin";
 
   const addForm = useForm<InsertExpense>({
     resolver: zodResolver(insertExpenseSchema),
@@ -126,6 +133,21 @@ function ExpensesContent() {
       return expenseMonth === selectedMonth;
     });
   }, [monthlyExpenses, selectedMonth]);
+
+  const { data: salaryExpenses = [], isLoading: salaryLoading } = useQuery<ExpenseWithOutlet[]>({
+    queryKey: ["/api/expenses", { 
+      outletId: selectedOutletId === "" ? undefined : selectedOutletId,
+      type: "gaji"
+    }],
+    enabled: canViewSalary,
+  });
+
+  const filteredSalaryExpenses = useMemo(() => {
+    return salaryExpenses.filter(expense => {
+      const expenseMonth = expense.date.substring(0, 7);
+      return expenseMonth === selectedMonth;
+    });
+  }, [salaryExpenses, selectedMonth]);
 
   const { data: salesData = [] } = useQuery<SalesWithCalculations[]>({
     queryKey: ["/api/sales", { date: selectedDate, outletId: selectedOutletId }],
@@ -546,6 +568,122 @@ function ExpensesContent() {
         </CardContent>
       </Card>
 
+      {canViewSalary && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-green-600" />
+              Pengeluaran Gaji
+            </CardTitle>
+            <CardDescription>
+              Pengeluaran gaji karyawan (hanya Owner yang dapat melihat)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="salary-outlet">Filter Outlet</Label>
+                <Select 
+                  value={selectedOutletId || "all"} 
+                  onValueChange={(v) => setSelectedOutletId(v === "all" ? "" : v)}
+                >
+                  <SelectTrigger id="salary-outlet" data-testid="select-salary-outlet">
+                    <SelectValue placeholder="Semua Outlet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Outlet</SelectItem>
+                    {outlets.map((outlet) => (
+                      <SelectItem key={outlet.id} value={outlet.id}>
+                        {outlet.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="salary-month">Bulan</Label>
+                <Input
+                  id="salary-month"
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  data-testid="input-salary-month"
+                />
+              </div>
+            </div>
+
+            {salaryLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : filteredSalaryExpenses.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border rounded-lg" data-testid="salary-empty-state">
+                Belum ada pengeluaran gaji untuk bulan ini
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-end">
+                  <Badge variant="secondary" className="font-mono bg-green-100 dark:bg-green-900/30">
+                    Total Gaji: {formatCurrency(filteredSalaryExpenses.reduce((sum, e) => sum + e.amount, 0))}
+                  </Badge>
+                </div>
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tanggal</TableHead>
+                        <TableHead>Outlet</TableHead>
+                        <TableHead>Deskripsi</TableHead>
+                        <TableHead className="text-right">Jumlah</TableHead>
+                        <TableHead className="text-center w-24">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredSalaryExpenses.map((expense) => (
+                        <TableRow key={expense.id} data-testid={`row-salary-${expense.id}`}>
+                          <TableCell data-testid={`text-salary-date-${expense.id}`}>
+                            {formatDate(expense.date)}
+                          </TableCell>
+                          <TableCell data-testid={`text-salary-outlet-${expense.id}`}>
+                            {expense.outletName || "-"}
+                          </TableCell>
+                          <TableCell data-testid={`text-salary-description-${expense.id}`}>
+                            {expense.description}
+                          </TableCell>
+                          <TableCell className="text-right font-medium font-mono text-green-600" data-testid={`text-salary-amount-${expense.id}`}>
+                            {formatCurrency(expense.amount)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditDialog(expense)}
+                                data-testid={`button-edit-salary-${expense.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openDeleteDialog(expense)}
+                                data-testid={`button-delete-salary-${expense.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -608,6 +746,9 @@ function ExpensesContent() {
                       <SelectContent>
                         <SelectItem value="harian">Harian</SelectItem>
                         <SelectItem value="bulanan">Bulanan</SelectItem>
+                        {canViewSalary && (
+                          <SelectItem value="gaji">Gaji</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -738,6 +879,9 @@ function ExpensesContent() {
                       <SelectContent>
                         <SelectItem value="harian">Harian</SelectItem>
                         <SelectItem value="bulanan">Bulanan</SelectItem>
+                        {canViewSalary && (
+                          <SelectItem value="gaji">Gaji</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

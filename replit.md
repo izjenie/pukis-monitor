@@ -132,13 +132,14 @@ The application uses four primary tables:
    - Optional sold-out time tracking
    - Automatic timestamp management
 
-4. **expenses** - Daily and monthly expense records
+4. **expenses** - Daily, monthly, and salary expense records
    - Links to outlet via foreign key relationship
    - Date field (YYYY-MM-DD format)
-   - Type field distinguishing between daily ("harian") and monthly ("bulanan") expenses
+   - Type field: "harian" (daily), "bulanan" (monthly), or "gaji" (salary - owner only)
    - Description field for expense details
    - Amount field for expense value (validated >= 0)
    - Automatic timestamp management
+   - Note: Salary expenses ("gaji") are only visible to owner and super_admin roles
 
 **Calculated Fields Strategy**
 - Gross margin and percentages computed in application layer rather than database
