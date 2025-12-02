@@ -415,6 +415,7 @@ function ExpensesContent() {
                       <TableRow>
                         <TableHead>Deskripsi</TableHead>
                         <TableHead className="text-right">Jumlah</TableHead>
+                        <TableHead className="text-center w-16">Bukti</TableHead>
                         <TableHead className="text-center w-24">Aksi</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -426,6 +427,21 @@ function ExpensesContent() {
                           </TableCell>
                           <TableCell className="text-right font-medium font-mono" data-testid={`text-amount-${expense.id}`}>
                             {formatCurrency(expense.amount)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {expense.proofUrl ? (
+                              <a
+                                href={expense.proofUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center text-blue-600 hover:text-blue-800"
+                                data-testid={`link-proof-${expense.id}`}
+                              >
+                                <FileImage className="h-4 w-4" />
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
@@ -524,6 +540,7 @@ function ExpensesContent() {
                       <TableHead>Outlet</TableHead>
                       <TableHead>Deskripsi</TableHead>
                       <TableHead className="text-right">Jumlah</TableHead>
+                      <TableHead className="text-center w-16">Bukti</TableHead>
                       <TableHead className="text-center w-24">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -541,6 +558,21 @@ function ExpensesContent() {
                         </TableCell>
                         <TableCell className="text-right font-medium font-mono" data-testid={`text-amount-${expense.id}`}>
                           {formatCurrency(expense.amount)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {expense.proofUrl ? (
+                            <a
+                              href={expense.proofUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center text-blue-600 hover:text-blue-800"
+                              data-testid={`link-proof-${expense.id}`}
+                            >
+                              <FileImage className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
@@ -639,6 +671,7 @@ function ExpensesContent() {
                         <TableHead>Outlet</TableHead>
                         <TableHead>Deskripsi</TableHead>
                         <TableHead className="text-right">Jumlah</TableHead>
+                        <TableHead className="text-center w-16">Bukti</TableHead>
                         <TableHead className="text-center w-24">Aksi</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -656,6 +689,21 @@ function ExpensesContent() {
                           </TableCell>
                           <TableCell className="text-right font-medium font-mono text-green-600" data-testid={`text-salary-amount-${expense.id}`}>
                             {formatCurrency(expense.amount)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {expense.proofUrl ? (
+                              <a
+                                href={expense.proofUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center text-blue-600 hover:text-blue-800"
+                                data-testid={`link-salary-proof-${expense.id}`}
+                              >
+                                <FileImage className="h-4 w-4" />
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
