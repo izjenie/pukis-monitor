@@ -165,6 +165,7 @@ export const expenses = pgTable("expenses", {
   type: varchar("type").$type<ExpenseType>().notNull(), // "harian" atau "bulanan"
   description: text("description").notNull(),
   amount: real("amount").notNull().default(0),
+  proofUrl: text("proof_url"), // URL to uploaded proof file (photo/PDF)
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -179,6 +180,7 @@ export const insertExpenseSchema = createInsertSchema(expenses).omit({
     errorMap: () => ({ message: "Jenis harus 'harian', 'bulanan', atau 'gaji'" }),
   }),
   description: z.string().min(1, "Deskripsi harus diisi"),
+  proofUrl: z.string().optional(),
 });
 
 export const updateExpenseSchema = z.object({
@@ -189,6 +191,7 @@ export const updateExpenseSchema = z.object({
   }).optional(),
   description: z.string().min(1, "Deskripsi harus diisi").optional(),
   amount: z.number().min(0, "Jumlah harus >= 0").optional(),
+  proofUrl: z.string().nullable().optional(),
 });
 
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;

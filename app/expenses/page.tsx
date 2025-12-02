@@ -60,9 +60,10 @@ import { AuthenticatedLayout } from "@/components/authenticated-layout";
 import { 
   Plus, Pencil, Trash2, Receipt, CalendarRange, Store, 
   Calendar, DollarSign, TrendingUp, Package, Loader2, Minus,
-  ArrowRight, Info, Banknote
+  ArrowRight, Info, Banknote, FileImage, FileText, ExternalLink
 } from "lucide-react";
 import type { Outlet, ExpenseWithOutlet } from "@shared/schema";
+import { ObjectUploader } from "@/components/object-uploader";
 
 function ExpensesContent() {
   const { toast } = useToast();
@@ -90,6 +91,7 @@ function ExpensesContent() {
       type: "harian",
       description: "",
       amount: 0,
+      proofUrl: undefined,
     },
   });
 
@@ -101,6 +103,7 @@ function ExpensesContent() {
       type: "harian",
       description: "",
       amount: 0,
+      proofUrl: undefined,
     },
   });
 
@@ -258,6 +261,7 @@ function ExpensesContent() {
       type: expense.type,
       description: expense.description,
       amount: expense.amount,
+      proofUrl: expense.proofUrl || undefined,
     });
     setIsEditDialogOpen(true);
   };
@@ -792,6 +796,24 @@ function ExpensesContent() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={addForm.control}
+                name="proofUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bukti Pengeluaran</FormLabel>
+                    <FormControl>
+                      <ObjectUploader
+                        onUploadComplete={(url) => field.onChange(url)}
+                        currentFileUrl={field.value}
+                        onRemove={() => field.onChange(undefined)}
+                        buttonText="+ Upload Bukti"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button
                   type="button"
@@ -919,6 +941,24 @@ function ExpensesContent() {
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                         data-testid="input-edit-amount"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="proofUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bukti Pengeluaran</FormLabel>
+                    <FormControl>
+                      <ObjectUploader
+                        onUploadComplete={(url) => field.onChange(url)}
+                        currentFileUrl={field.value}
+                        onRemove={() => field.onChange(undefined)}
+                        buttonText="+ Upload Bukti"
                       />
                     </FormControl>
                     <FormMessage />
