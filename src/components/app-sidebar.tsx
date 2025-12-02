@@ -14,7 +14,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { User } from "@shared/schema";
 
 const menuItems = [
@@ -126,6 +128,12 @@ export function AppSidebar() {
           </>
         )}
       </SidebarContent>
+      <SidebarFooter className="p-4 border-t">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Mode Tampilan</span>
+          <ThemeToggle />
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }
