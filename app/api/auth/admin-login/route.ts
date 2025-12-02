@@ -48,12 +48,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (user.role === "super_admin") {
-      return NextResponse.json(
-        { error: "SUPER_ADMIN harus login melalui Replit Auth" },
-        { status: 401 }
-      );
-    }
 
     const session = await getSession();
     
