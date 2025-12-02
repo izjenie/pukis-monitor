@@ -7,6 +7,7 @@ import {
   type MTDSummary,
   type User,
   type UpsertUser,
+  type UserRole,
   type Expense,
   type InsertExpense,
   type ExpenseWithOutlet,
@@ -16,12 +17,25 @@ import {
   expenses,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, ne, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations - Required for Replit Auth
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  
+  // Admin management operations (for SUPER_ADMIN)
+  getAdminUsers(): Promise<User[]>;
+  createAdminUser(data: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+    password: string; // Already hashed
+    role: UserRole;
+    assignedOutletId?: string;
+  }): Promise<User>;
+  deleteAdminUser(id: string): Promise<boolean>;
 
   getOutlets(): Promise<Outlet[]>;
   getOutlet(id: string): Promise<Outlet | undefined>;
@@ -71,6 +85,11 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
   async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
@@ -84,6 +103,48 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  // Admin management operations (for SUPER_ADMIN)
+  async getAdminUsers(): Promise<User[]> {
+    // Get all users that have a password (created by SUPER_ADMIN) and are not SUPER_ADMIN
+    const adminUsers = await db
+      .select()
+      .from(users)
+      .where(and(
+        isNotNull(users.password),
+        ne(users.role, "super_admin")
+      ));
+    return adminUsers.sort((a, b) => 
+      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
+    );
+  }
+
+  async createAdminUser(data: {
+    email: string;
+    firstName: string;
+    lastName?: string;
+    password: string;
+    role: UserRole;
+    assignedOutletId?: string;
+  }): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName || null,
+        password: data.password,
+        role: data.role,
+        assignedOutletId: data.assignedOutletId || null,
+      })
+      .returning();
+    return user;
+  }
+
+  async deleteAdminUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   async getOutlets(): Promise<Outlet[]> {

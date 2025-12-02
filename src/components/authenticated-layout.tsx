@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,15 +14,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Loader2 } from "lucide-react";
-import type { User } from "@shared/schema";
+import { LogOut, Loader2, ShieldAlert } from "lucide-react";
+import type { User, UserRole } from "@shared/schema";
 import Link from "next/link";
+
+const getRoleLabel = (role: string) => {
+  const roleMap: Record<string, string> = {
+    super_admin: "Super Admin",
+    owner: "Owner",
+    admin_outlet: "Admin Outlet",
+    finance: "Finance",
+  };
+  return roleMap[role] || role;
+};
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode;
+  requiredRole?: UserRole;
 }
 
-export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
+export function AuthenticatedLayout({ children, requiredRole }: AuthenticatedLayoutProps) {
   const { data: user, isLoading } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     retry: false,
@@ -43,12 +55,41 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
           <p className="text-lg text-muted-foreground max-w-md">
             Sistem monitoring penjualan dan pengeluaran untuk outlet Pukis
           </p>
-          <Link href="/api/auth/login">
-            <Button size="lg" className="mt-4">
-              Masuk dengan Replit
-            </Button>
-          </Link>
+          <div className="flex flex-col gap-3 items-center">
+            <Link href="/api/auth/login">
+              <Button size="lg" className="min-w-[200px]" data-testid="button-login">
+                Masuk dengan Replit
+              </Button>
+            </Link>
+            <Link href="/admin-login">
+              <Button variant="outline" size="lg" className="min-w-[200px]" data-testid="button-admin-login">
+                Login Admin
+              </Button>
+            </Link>
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-accent/20">
+        <Card className="max-w-md">
+          <CardContent className="flex flex-col items-center py-8 gap-4">
+            <ShieldAlert className="h-16 w-16 text-destructive" />
+            <h2 className="text-xl font-bold">Akses Ditolak</h2>
+            <p className="text-center text-muted-foreground">
+              Anda tidak memiliki akses ke halaman ini. 
+              Halaman ini memerlukan role <span className="font-semibold">{getRoleLabel(requiredRole)}</span>.
+            </p>
+            <Link href="/">
+              <Button variant="outline" className="mt-2">
+                Kembali ke Beranda
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -66,15 +107,6 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
       return user.email.substring(0, 2).toUpperCase();
     }
     return "U";
-  };
-
-  const getRoleLabel = (role: string) => {
-    const roleMap: Record<string, string> = {
-      owner: "Owner",
-      admin_outlet: "Admin Outlet",
-      finance: "Finance",
-    };
-    return roleMap[role] || role;
   };
 
   return (

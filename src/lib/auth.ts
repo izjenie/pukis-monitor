@@ -83,7 +83,24 @@ export async function getCurrentUser() {
 }
 
 export async function upsertUserFromClaims(claims: any) {
-  const existingUser = await storage.getUser(claims.sub);
+  const existingUserById = await storage.getUser(claims.sub);
+  
+  if (!existingUserById && claims.email) {
+    const existingUserByEmail = await storage.getUserByEmail(claims.email);
+    if (existingUserByEmail) {
+      if (existingUserByEmail.password) {
+        throw new Error("Email ini sudah terdaftar sebagai akun admin. Silakan login melalui halaman Admin Login.");
+      }
+      return await storage.upsertUser({
+        id: existingUserByEmail.id,
+        email: claims.email,
+        firstName: claims.first_name,
+        lastName: claims.last_name,
+        profileImageUrl: claims.profile_image_url,
+        role: existingUserByEmail.role,
+      });
+    }
+  }
   
   return await storage.upsertUser({
     id: claims.sub,
@@ -91,6 +108,6 @@ export async function upsertUserFromClaims(claims: any) {
     firstName: claims.first_name,
     lastName: claims.last_name,
     profileImageUrl: claims.profile_image_url,
-    role: existingUser?.role || "finance",
+    role: existingUserById?.role || "finance",
   });
 }

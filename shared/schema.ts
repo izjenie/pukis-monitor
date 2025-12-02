@@ -14,10 +14,11 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User roles enum
-export type UserRole = "owner" | "admin_outlet" | "finance";
+// User roles enum - Added super_admin for managing other admins
+export type UserRole = "super_admin" | "owner" | "admin_outlet" | "finance";
 
 // Users table - Extended from Replit Auth with role-based access
+// password field is optional - only used for admin users created by SUPER_ADMIN
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
@@ -25,6 +26,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").$type<UserRole>().notNull().default("finance"),
+  password: varchar("password"), // Hashed password for admin users (null for Replit Auth users)
   assignedOutletId: varchar("assigned_outlet_id"), // For admin_outlet role
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -32,6 +34,20 @@ export const users = pgTable("users", {
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
+// Schema for creating admin users (by SUPER_ADMIN)
+export const insertAdminSchema = z.object({
+  email: z.string().email("Format email tidak valid"),
+  firstName: z.string().min(1, "Nama harus diisi"),
+  lastName: z.string().optional(),
+  password: z.string().min(8, "Password minimal 8 karakter"),
+  role: z.enum(["owner", "admin_outlet", "finance"], {
+    errorMap: () => ({ message: "Role tidak valid" }),
+  }),
+  assignedOutletId: z.string().optional(),
+});
+
+export type InsertAdmin = z.infer<typeof insertAdminSchema>;
 
 // Outlets table
 export const outlets = pgTable("outlets", {

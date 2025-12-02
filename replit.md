@@ -61,13 +61,21 @@ Preferred communication style: Simple, everyday language.
 app/                          # Next.js App Router pages
 ├── api/                      # API Route Handlers
 │   ├── auth/                 # Authentication endpoints
-│   │   ├── callback/route.ts # OAuth callback
-│   │   ├── login/route.ts    # Login redirect
-│   │   ├── logout/route.ts   # Logout handler
-│   │   └── user/route.ts     # Current user info
+│   │   ├── admin-login/route.ts  # Email/password login for admin users
+│   │   ├── callback/route.ts     # OAuth callback
+│   │   ├── login/route.ts        # Replit Auth login redirect
+│   │   ├── logout/route.ts       # Logout handler
+│   │   └── user/route.ts         # Current user info
+│   ├── super-admin/              # Super admin endpoints
+│   │   └── admins/               # Admin user CRUD
+│   │       ├── route.ts          # GET list, POST create
+│   │       └── [id]/route.ts     # DELETE admin
 │   ├── outlets/              # Outlet CRUD
 │   ├── sales/                # Sales CRUD + MTD
 │   └── expenses/             # Expense CRUD
+├── admin-login/page.tsx      # Email/password login page
+├── super-admin/              # Super admin pages
+│   └── admins/page.tsx       # Admin management page
 ├── dashboard-harian/page.tsx # Daily dashboard
 ├── dashboard-mtd/page.tsx    # MTD dashboard
 ├── outlets/page.tsx          # Outlet management
@@ -102,10 +110,12 @@ shared/
 The application uses four primary tables:
 
 1. **users** - Stores user authentication data
-   - Unique identifier (from Replit Auth)
+   - Unique identifier (from Replit Auth or auto-generated UUID for admin users)
    - Email, first name, last name
    - Profile image URL
-   - Role (owner, admin_outlet, finance)
+   - Role (super_admin, owner, admin_outlet, finance)
+   - Password (hashed, optional - only for admin users created by SUPER_ADMIN)
+   - assignedOutletId (for admin_outlet role)
    - Creation timestamp
 
 2. **outlets** - Stores outlet master data
@@ -166,11 +176,29 @@ The application uses four primary tables:
 
 ### Authentication and Authorization
 
-- Replit Auth integration via openid-client v6
-- PKCE flow with proper code_verifier/code_challenge
-- State parameter for CSRF protection
-- Iron-session for secure session management
-- Role-based access: owner, admin_outlet, finance
+**Dual Authentication System:**
+1. **Replit Auth** - OAuth/OIDC for general users
+   - Integration via openid-client v6
+   - PKCE flow with proper code_verifier/code_challenge
+   - State parameter for CSRF protection
+   - Iron-session for secure session management
+
+2. **Email/Password Login** - For admin users created by SUPER_ADMIN
+   - bcrypt for password hashing
+   - Session-based authentication via iron-session
+   - Login endpoint: POST /api/auth/admin-login
+   - Login page: /admin-login
+
+**User Roles:**
+- `super_admin` - Can create/manage other admin users, full system access
+- `owner` - Full access to all outlets and data
+- `admin_outlet` - Access to assigned outlet only
+- `finance` - Read access for financial reporting
+
+**Admin Management:**
+- SUPER_ADMIN can create admin users via /super-admin/admins page
+- Admin users login with email/password at /admin-login
+- Sidebar shows "Manajemen Admin" menu for SUPER_ADMIN only
 
 ### External Dependencies
 

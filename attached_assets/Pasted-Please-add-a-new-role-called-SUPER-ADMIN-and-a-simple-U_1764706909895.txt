@@ -1,0 +1,65 @@
+Please add a new role called SUPER ADMIN and a simple UI page for managing Admin users, without merusak fitur existing.
+
+🎯 GOAL
+- Membuat role baru: SUPER_ADMIN.
+- SUPER_ADMIN bisa membuat Admin yang bisa login dan mengakses fitur sesuai role (misalnya OWNER / STAFF, sesuai struktur app yang sudah ada).
+- Menambahkan 1 halaman khusus untuk SUPER_ADMIN berisi:
+  - Tombol "+ Buat Admin"
+  - List admin yang sudah terdaftar.
+
+🧩 DETAIL FITUR SUPER ADMIN
+
+1. Autentikasi & Role
+- Tambahkan role SUPER_ADMIN di sistem auth/authorization yang sudah ada.
+- Pastikan:
+  - Hanya SUPER_ADMIN yang bisa mengakses halaman manajemen admin.
+  - USER biasa (OWNER / STAFF) tidak bisa mengakses halaman ini.
+- Jika sudah ada middleware / guard untuk role-based access, gunakan dan extend saja (jangan bikin sistem baru).
+
+2. Halaman “Manajemen Admin”
+- Buat route /super-admin/admins (atau yang sesuai konvensi framework yang terdeteksi).
+- Layout halaman:
+  - Header judul: "Manajemen Admin"
+  - Tombol utama di atas: "+ Buat Admin"
+  - Di bawahnya: tabel/list Admin yang sudah terdaftar, berisi kolom:
+    - Nama Admin
+    - Email
+    - Role (misalnya OWNER / STAFF / ADMIN, sesuaikan dengan struktur sistem)
+    - Tanggal dibuat (optional)
+  - Jika belum ada admin: tampilkan teks "Belum ada admin terdaftar."
+
+3. Tombol “+ Buat Admin”
+- Saat tombol "+ Buat Admin" diklik, munculkan popup/modal form.
+- Isi form:
+  - Input text: Nama Admin
+  - Input email: Alamat Email
+  - Input password: Password Admin
+  - (Optional) Dropdown Role: pilih role yang akan diberikan (misalnya OWNER atau STAFF), sesuaikan dengan struktur app.
+- Validasi:
+  - Semua field wajib diisi.
+  - Email harus format valid.
+  - Password minimal 8 karakter.
+- Tombol di modal:
+  - "Simpan" → memanggil API untuk membuat admin baru.
+  - "Batal" → menutup modal tanpa menyimpan.
+
+4. Backend / API
+- Tambahkan endpoint (REST atau sesuai pola yang sudah ada), contoh:
+  - POST /api/super-admin/admins → membuat admin baru.
+  - GET /api/super-admin/admins → mengambil list admin.
+- Logika POST:
+  - Validasi input.
+  - Hash password sebelum disimpan (gunakan library yang sudah digunakan di project, misalnya bcrypt).
+  - Simpan ke database di tabel user/admin yang sudah ada (jangan duplikasi struktur jika bisa digabung).
+  - Set field role sesuai yang dipilih (misalnya role = "OWNER" atau "STAFF" atau "ADMIN", sesuaikan dengan konsep yang sudah ada).
+- Logika GET:
+  - Hanya bisa diakses jika user adalah SUPER_ADMIN.
+  - Return data list admin untuk ditampilkan di tabel frontend.
+
+5. UX Tambahan
+- Setelah berhasil membuat admin:
+  - Modal tertutup otomatis.
+  - Tabel list admin di-refresh dan admin baru muncul di paling atas.
+  - Tampilkan notifikasi kecil “Admin berhasil dibuat”.
+- Jika gagal (error validasi / server):
+  - Tampilkan pesan error yang jelas di form/modal.

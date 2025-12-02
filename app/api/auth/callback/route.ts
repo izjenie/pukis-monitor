@@ -88,12 +88,19 @@ export async function GET(request: NextRequest) {
       : new URL("/", request.url).href;
     
     return NextResponse.redirect(homeUrl);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Callback error:", error);
-    // Redirect to login on the correct domain
-    const loginUrl = replitDomain 
-      ? `https://${replitDomain}/api/auth/login`
-      : new URL("/api/auth/login", request.url).href;
-    return NextResponse.redirect(loginUrl);
+    
+    if (error?.message?.includes("admin")) {
+      const adminLoginUrl = replitDomain 
+        ? `https://${replitDomain}/admin-login?error=admin_email`
+        : new URL("/admin-login?error=admin_email", request.url).href;
+      return NextResponse.redirect(adminLoginUrl);
+    }
+    
+    const homeUrl = replitDomain 
+      ? `https://${replitDomain}/?error=login_failed`
+      : new URL("/?error=login_failed", request.url).href;
+    return NextResponse.redirect(homeUrl);
   }
 }
