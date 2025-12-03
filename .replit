@@ -75,3 +75,8 @@ args = "npx next dev --port 5000"
 
 [agent]
 integrations = ["javascript_mem_db:1.0.0", "javascript_log_in_with_replit:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+PRIVATE_OBJECT_DIR = "/pukis-uploads"
