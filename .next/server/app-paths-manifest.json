@@ -1,10 +1,5 @@
 {
   "/page": "app/page.js",
-  "/admin-login/page": "app/admin-login/page.js",
-  "/super-admin/admins/page": "app/super-admin/admins/page.js",
-  "/expenses/page": "app/expenses/page.js",
-  "/api/auth/user/route": "app/api/auth/user/route.js",
-  "/api/auth/admin-login/route": "app/api/auth/admin-login/route.js",
   "/api/outlets/route": "app/api/outlets/route.js",
-  "/api/expenses/route": "app/api/expenses/route.js"
+  "/api/auth/user/route": "app/api/auth/user/route.js"
 }
