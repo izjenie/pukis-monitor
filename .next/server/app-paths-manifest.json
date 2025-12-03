@@ -1,8 +1,7 @@
 {
-  "/page": "app/page.js",
   "/api/auth/user/route": "app/api/auth/user/route.js",
   "/api/outlets/route": "app/api/outlets/route.js",
-  "/expenses/page": "app/expenses/page.js",
-  "/api/expenses/route": "app/api/expenses/route.js",
-  "/api/objects/upload/route": "app/api/objects/upload/route.js"
+  "/api/sales/mtd/route": "app/api/sales/mtd/route.js",
+  "/api/sales/route": "app/api/sales/route.js",
+  "/page": "app/page.js"
 }

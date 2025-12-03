@@ -80,3 +80,6 @@ integrations = ["javascript_mem_db:1.0.0", "javascript_log_in_with_replit:1.0.0"
 
 [userenv.shared]
 PRIVATE_OBJECT_DIR = "/pukis-uploads"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-e140db92-2deb-44b0-87ed-a70e1de425f7"
