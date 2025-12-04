@@ -20,7 +20,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Lock } from "lucide-react";
-import Link from "next/link";
 
 const loginSchema = z.object({
   email: z.string().email("Format email tidak valid"),
@@ -78,9 +77,9 @@ export default function AdminLoginPage() {
               <Lock className="h-8 w-8 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Login Admin</CardTitle>
+          <CardTitle className="text-2xl">Login Super Admin</CardTitle>
           <CardDescription>
-            Masuk dengan email dan password admin
+            Masuk dengan email dan password super admin
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -96,7 +95,7 @@ export default function AdminLoginPage() {
                       <Input
                         {...field}
                         type="email"
-                        placeholder="admin@example.com"
+                        placeholder="superadmin@example.com"
                         className="min-h-12"
                         data-testid="input-login-email"
                       />
@@ -145,17 +144,6 @@ export default function AdminLoginPage() {
               </Button>
             </form>
           </Form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground mb-2">
-              Atau gunakan
-            </p>
-            <Link href="/api/auth/login">
-              <Button variant="outline" className="w-full" data-testid="button-replit-login">
-                Masuk dengan Replit
-              </Button>
-            </Link>
-          </div>
         </CardContent>
       </Card>
     </div>
