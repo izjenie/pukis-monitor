@@ -16,10 +16,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/not-found.js"
     ],
-    "/admin-login/page": [
+    "/dashboard-harian/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin-login/page.js"
+      "static/chunks/app/dashboard-harian/page.js"
     ]
   }
 }
