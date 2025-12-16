@@ -2,13 +2,22 @@
 
 Panduan lengkap untuk deploy aplikasi Pukis Monitoring ke server Ubuntu.
 
+## Arsitektur Baru
+
+Aplikasi ini sekarang menggunakan arsitektur terpisah:
+- **Frontend**: Next.js 14 (port 3000)
+- **Backend**: Python FastAPI (port 8000)
+- **Database**: SQLite (dapat di-upgrade ke PostgreSQL)
+
+---
+
 ## Persyaratan
 
 - Ubuntu Server 20.04 atau lebih baru
 - Minimum RAM 2GB (disarankan 4GB)
 - Domain name (opsional)
 - Akses SSH ke server
-- PostgreSQL database (lokal atau managed seperti Neon, Supabase)
+- Python 3.10+ dan Node.js 20+
 
 ---
 
@@ -38,28 +47,16 @@ npm --version
 
 ---
 
-## Step 3: Install PostgreSQL (Opsional - jika database lokal)
+## Step 3: Install Python 3.10+
 
 ```bash
-# Install PostgreSQL
-sudo apt install postgresql postgresql-contrib -y
+# Install Python dan pip
+sudo apt install python3 python3-pip python3-venv -y
 
-# Start dan enable PostgreSQL
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Buat database dan user
-sudo -u postgres psql
-
-# Di dalam psql:
-CREATE DATABASE pukis_monitoring;
-CREATE USER pukis_user WITH ENCRYPTED PASSWORD 'password_anda';
-GRANT ALL PRIVILEGES ON DATABASE pukis_monitoring TO pukis_user;
-\q
+# Verifikasi instalasi
+python3 --version  # harus 3.10+
+pip3 --version
 ```
-
-**Jika menggunakan managed database (Neon, Supabase, dll):**
-- Siapkan DATABASE_URL dari provider database Anda
 
 ---
 
@@ -111,64 +108,78 @@ sudo chown -R $USER:$USER /var/www/pukis-monitoring
 
 ---
 
-## Step 7: Konfigurasi Environment Variables
+## Step 7: Setup Backend (FastAPI)
 
 ```bash
+cd /var/www/pukis-monitoring/backend
+
+# Buat virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Buat file .env untuk backend
+nano .env
+```
+
+**Isi .env backend:**
+
+```env
+# JWT Secret (generate random string)
+JWT_SECRET_KEY=your_random_secret_key_minimal_32_characters
+
+# Database (SQLite path)
+SQLITE_DATABASE_URL=sqlite:///./pukis_monitoring.db
+
+# Object Storage (opsional)
+OBJECT_STORAGE_BUCKET_ID=your-bucket-id
+```
+
+**Inisialisasi database dan seed super admin:**
+
+```bash
+# Jalankan seed script untuk membuat super admin
+python seed.py
+
+# Verifikasi
+sqlite3 pukis_monitoring.db "SELECT email, role FROM users;"
+```
+
+---
+
+## Step 8: Setup Frontend (Next.js)
+
+```bash
+cd /var/www/pukis-monitoring
+
+# Install dependencies
+npm install
+
 # Buat file .env.production
 nano .env.production
 ```
 
-**Isi dengan konfigurasi berikut:**
+**Isi .env.production:**
 
 ```env
-# Database
-DATABASE_URL=postgresql://user:password@host:5432/database_name
+# API Backend URL
+NEXT_PUBLIC_API_URL=http://localhost:8000
 
-# Session Secret (generate random string)
-SESSION_SECRET=your_random_secret_key_minimal_32_characters
-
-# Optional: Object Storage (jika menggunakan)
-PRIVATE_OBJECT_DIR=/bucket-id-anda
-
-# Production URL
+# Production URL (ganti dengan domain Anda)
 NEXT_PUBLIC_APP_URL=https://yourdomain.com
 ```
 
-**Generate SESSION_SECRET:**
-```bash
-openssl rand -base64 32
-```
-
----
-
-## Step 8: Install Dependencies dan Build
+**Build aplikasi:**
 
 ```bash
-# Install dependencies
-npm install
-
-# Build aplikasi untuk production
-npm run build
-
-# Push database schema (jika database baru)
-npm run db:push
-```
-
-**Jika build gagal karena memory:**
-```bash
-# Tambahkan swap space
-sudo fallocate -l 2G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-
-# Coba build lagi
 npm run build
 ```
 
 ---
 
-## Step 9: Jalankan Aplikasi dengan PM2
+## Step 9: Konfigurasi PM2 untuk Kedua Service
 
 ```bash
 # Buat file ecosystem PM2
@@ -181,7 +192,7 @@ nano ecosystem.config.js
 module.exports = {
   apps: [
     {
-      name: "pukis-monitoring",
+      name: "pukis-frontend",
       script: "npm",
       args: "start",
       cwd: "/var/www/pukis-monitoring",
@@ -193,6 +204,19 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "1G",
+    },
+    {
+      name: "pukis-backend",
+      script: "/var/www/pukis-monitoring/backend/venv/bin/python",
+      args: "-m uvicorn app.main:app --host 0.0.0.0 --port 8000",
+      cwd: "/var/www/pukis-monitoring/backend",
+      env: {
+        PYTHONPATH: "/var/www/pukis-monitoring/backend",
+      },
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: "500M",
     },
   ],
 };
@@ -206,7 +230,7 @@ pm2 start ecosystem.config.js
 
 # Cek status
 pm2 list
-pm2 logs pukis-monitoring
+pm2 logs
 
 # Enable auto-start saat server reboot
 pm2 startup systemd
@@ -216,6 +240,10 @@ pm2 save
 
 **Test aplikasi:**
 ```bash
+# Test backend
+curl http://localhost:8000/api/health
+
+# Test frontend
 curl http://localhost:3000
 ```
 
@@ -234,11 +262,9 @@ sudo nano /etc/nginx/sites-available/pukis-monitoring
 server {
     listen 80;
     listen [::]:80;
-    server_name yourdomain.com www.yourdomain.com;  # Ganti dengan domain/IP Anda
+    server_name yourdomain.com www.yourdomain.com;
 
-    # Redirect semua HTTP ke HTTPS (aktifkan setelah SSL terpasang)
-    # return 301 https://$server_name$request_uri;
-
+    # Frontend (Next.js)
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -249,9 +275,18 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Backend API (FastAPI)
+    location /api/ {
+        proxy_pass http://localhost:8000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 60;
         proxy_connect_timeout 60;
-        proxy_redirect off;
 
         # Upload file size limit (untuk upload bukti pengeluaran)
         client_max_body_size 20M;
@@ -286,11 +321,6 @@ sudo apt install certbot python3-certbot-nginx -y
 # Dapatkan SSL certificate
 sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
 
-# Ikuti prompt:
-# - Masukkan email
-# - Setujui terms
-# - Pilih redirect HTTP ke HTTPS (opsi 2)
-
 # Test auto-renewal
 sudo certbot renew --dry-run
 ```
@@ -311,36 +341,6 @@ sudo ufw status
 
 ---
 
-## Step 13: Buat Super Admin User
-
-```bash
-# Masuk ke database
-psql $DATABASE_URL
-
-# Atau jika PostgreSQL lokal:
-sudo -u postgres psql -d pukis_monitoring
-```
-
-**Jalankan SQL untuk membuat super admin:**
-
-```sql
--- Generate bcrypt hash untuk password (contoh: superadmin123)
--- Anda bisa generate hash di: https://bcrypt-generator.com/
-
-INSERT INTO users (id, email, first_name, last_name, role, password, created_at)
-VALUES (
-  gen_random_uuid(),
-  'superadmin@pukis.id',
-  'Super',
-  'Admin',
-  'super_admin',
-  '$2b$10$hashedpasswordanda',  -- Ganti dengan bcrypt hash
-  NOW()
-);
-```
-
----
-
 ## Commands untuk Maintenance
 
 ### PM2 Commands
@@ -349,20 +349,19 @@ VALUES (
 # Lihat semua proses
 pm2 list
 
-# Restart aplikasi
-pm2 restart pukis-monitoring
+# Restart semua
+pm2 restart all
 
-# Stop aplikasi
-pm2 stop pukis-monitoring
+# Restart spesifik
+pm2 restart pukis-frontend
+pm2 restart pukis-backend
 
 # Lihat logs
-pm2 logs pukis-monitoring
+pm2 logs
+pm2 logs pukis-backend --lines 100
 
 # Monitor resource
 pm2 monit
-
-# Clear logs
-pm2 flush
 ```
 
 ### Update Aplikasi
@@ -373,56 +372,41 @@ cd /var/www/pukis-monitoring
 # Pull kode terbaru
 git pull origin main
 
-# Install dependencies baru (jika ada)
+# Update backend dependencies
+cd backend
+source venv/bin/activate
+pip install -r requirements.txt
+deactivate
+cd ..
+
+# Update frontend dependencies
 npm install
 
-# Build ulang
+# Build ulang frontend
 npm run build
 
-# Push schema database (jika ada perubahan)
-npm run db:push
-
 # Restart aplikasi
-pm2 restart pukis-monitoring
-```
-
-### Nginx Commands
-
-```bash
-# Test konfigurasi
-sudo nginx -t
-
-# Restart Nginx
-sudo systemctl restart nginx
-
-# Reload tanpa downtime
-sudo systemctl reload nginx
-
-# Lihat error logs
-sudo tail -f /var/log/nginx/error.log
-
-# Lihat access logs
-sudo tail -f /var/log/nginx/access.log
+pm2 restart all
 ```
 
 ---
 
 ## Troubleshooting
 
-### Aplikasi tidak bisa diakses
+### Backend tidak bisa diakses
 
 ```bash
 # Cek PM2 berjalan
 pm2 list
 
-# Cek aplikasi respond
-curl http://localhost:3000
+# Cek backend respond
+curl http://localhost:8000/api/health
 
 # Cek logs untuk error
-pm2 logs pukis-monitoring --lines 100
+pm2 logs pukis-backend --lines 100
 ```
 
-### Nginx 502 Bad Gateway
+### Frontend 502 Bad Gateway
 
 ```bash
 # Pastikan PM2 running
@@ -435,30 +419,16 @@ curl http://localhost:3000
 sudo tail -f /var/log/nginx/error.log
 ```
 
-### Database connection error
+### Database error
 
 ```bash
-# Test koneksi database
-psql $DATABASE_URL -c "SELECT 1"
+cd /var/www/pukis-monitoring/backend
 
-# Cek PostgreSQL running (jika lokal)
-sudo systemctl status postgresql
-```
+# Check database file exists
+ls -la pukis_monitoring.db
 
-### Out of Memory saat build
-
-```bash
-# Cek memory tersedia
-free -h
-
-# Tambah swap jika diperlukan
-sudo fallocate -l 4G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-
-# Build lagi
-npm run build
+# Check database content
+sqlite3 pukis_monitoring.db ".tables"
 ```
 
 ---
@@ -468,25 +438,16 @@ npm run build
 ### Manual Backup
 
 ```bash
-# Backup ke file SQL
-pg_dump $DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql
+# Backup SQLite database
+cp /var/www/pukis-monitoring/backend/pukis_monitoring.db /var/backups/pukis_$(date +%Y%m%d_%H%M%S).db
 ```
 
 ### Restore dari Backup
 
 ```bash
-# Restore dari file SQL
-psql $DATABASE_URL < backup_file.sql
-```
-
-### Automated Daily Backup (Cron)
-
-```bash
-# Edit crontab
-crontab -e
-
-# Tambahkan baris ini (backup setiap hari jam 2 pagi)
-0 2 * * * pg_dump $DATABASE_URL > /var/backups/pukis_$(date +\%Y\%m\%d).sql
+# Restore dari file backup
+cp /var/backups/pukis_backup.db /var/www/pukis-monitoring/backend/pukis_monitoring.db
+pm2 restart pukis-backend
 ```
 
 ---
@@ -495,11 +456,20 @@ crontab -e
 
 ```
 /var/www/pukis-monitoring/
-├── .env.production          # Environment variables
-├── .next/                   # Build output
-├── app/                     # Next.js app directory
-├── src/                     # Source code
-├── shared/                  # Shared schema
+├── backend/                 # FastAPI Backend
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── database.py
+│   │   ├── models/
+│   │   ├── routers/
+│   │   └── services/
+│   ├── venv/               # Python virtual environment
+│   ├── pukis_monitoring.db # SQLite database
+│   ├── requirements.txt
+│   └── seed.py
+├── app/                     # Next.js App Router
+├── src/                     # React components & hooks
+├── .env.production          # Frontend env vars
 ├── ecosystem.config.js      # PM2 config
 ├── package.json
 └── ...
@@ -511,21 +481,33 @@ crontab -e
 
 - [ ] Server Ubuntu sudah diupdate
 - [ ] Node.js 20.x terinstall
-- [ ] PostgreSQL terinstall atau database URL tersedia
+- [ ] Python 3.10+ terinstall
 - [ ] PM2 terinstall
 - [ ] Nginx terinstall dan running
 - [ ] Repository sudah di-clone
-- [ ] .env.production sudah dikonfigurasi
-- [ ] npm install selesai
-- [ ] npm run build berhasil
-- [ ] npm run db:push berhasil
-- [ ] PM2 menjalankan aplikasi
+- [ ] Backend virtual environment dibuat
+- [ ] Backend dependencies terinstall
+- [ ] Backend .env terkonfigurasi
+- [ ] Super admin di-seed ke database
+- [ ] Frontend dependencies terinstall
+- [ ] Frontend .env.production terkonfigurasi
+- [ ] Frontend build berhasil
+- [ ] PM2 menjalankan kedua service
 - [ ] Nginx reverse proxy terkonfigurasi
 - [ ] SSL certificate terpasang
 - [ ] Firewall terkonfigurasi
-- [ ] Super admin user dibuat
 - [ ] Aplikasi bisa diakses via browser
 
 ---
 
-**Aplikasi Pukis Monitoring sekarang live di production!** 🚀
+## Kredensial Default
+
+**Super Admin:**
+- Email: superadmin@pukis.id
+- Password: superadmin123
+
+**PENTING:** Segera ganti password super admin setelah deployment!
+
+---
+
+**Aplikasi Pukis Monitoring sekarang live di production!**
