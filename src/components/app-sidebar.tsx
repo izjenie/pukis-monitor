@@ -3,7 +3,6 @@
 import { Home, TrendingUp, Calendar, Store, Wallet, Crown, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -17,7 +16,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import type { User } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
 
 const menuItems = [
   {
@@ -63,11 +62,7 @@ const superAdminMenuItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  
-  const { data: user } = useQuery<User | null>({
-    queryKey: ["/api/auth/user"],
-    retry: false,
-  });
+  const { user } = useAuth();
   
   const isSuperAdmin = user?.role === "super_admin";
 

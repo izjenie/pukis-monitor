@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -15,8 +14,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Loader2, ShieldAlert } from "lucide-react";
-import type { User, UserRole } from "@shared/schema";
+import { useAuth, type User } from "@/hooks/use-auth";
 import Link from "next/link";
+
+type UserRole = "super_admin" | "owner" | "admin_outlet" | "finance";
 
 const getRoleLabel = (role: string) => {
   const roleMap: Record<string, string> = {
@@ -34,10 +35,7 @@ interface AuthenticatedLayoutProps {
 }
 
 export function AuthenticatedLayout({ children, requiredRole }: AuthenticatedLayoutProps) {
-  const { data: user, isLoading } = useQuery<User | null>({
-    queryKey: ["/api/auth/user"],
-    retry: false,
-  });
+  const { user, isLoading, logout } = useAuth();
 
   if (isLoading) {
     return (
@@ -100,8 +98,8 @@ export function AuthenticatedLayout({ children, requiredRole }: AuthenticatedLay
   };
 
   const getUserInitials = () => {
-    if (user.firstName && user.lastName) {
-      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    if (user.first_name && user.last_name) {
+      return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
     }
     if (user.email) {
       return user.email.substring(0, 2).toUpperCase();
@@ -127,7 +125,7 @@ export function AuthenticatedLayout({ children, requiredRole }: AuthenticatedLay
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full" data-testid="button-user-menu">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={user.profileImageUrl || undefined} alt={user.email || "User"} />
+                      <AvatarImage src={user.profile_image_url || undefined} alt={user.email || "User"} />
                       <AvatarFallback>{getUserInitials()}</AvatarFallback>
                     </Avatar>
                   </Button>
@@ -136,8 +134,8 @@ export function AuthenticatedLayout({ children, requiredRole }: AuthenticatedLay
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
-                        {user.firstName && user.lastName
-                          ? `${user.firstName} ${user.lastName}`
+                        {user.first_name && user.last_name
+                          ? `${user.first_name} ${user.last_name}`
                           : user.email}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
@@ -146,11 +144,9 @@ export function AuthenticatedLayout({ children, requiredRole }: AuthenticatedLay
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/api/auth/logout" className="cursor-pointer" data-testid="button-logout">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Keluar</span>
-                    </Link>
+                  <DropdownMenuItem onClick={logout} className="cursor-pointer" data-testid="button-logout">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Keluar</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

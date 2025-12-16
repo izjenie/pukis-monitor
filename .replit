@@ -1,9 +1,10 @@
-modules = ["nodejs-20", "web", "postgresql-16"]
+modules = ["nodejs-20", "web", "postgresql-16", "python-3.11"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["cargo", "libiconv", "rustc"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -80,6 +81,7 @@ integrations = ["javascript_mem_db:1.0.0", "javascript_log_in_with_replit:1.0.0"
 
 [userenv.shared]
 PRIVATE_OBJECT_DIR = "/replit-objstore-e140db92-2deb-44b0-87ed-a70e1de425f7"
+NEXT_PUBLIC_API_URL = "http://localhost:8000"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-e140db92-2deb-44b0-87ed-a70e1de425f7"
