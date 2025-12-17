@@ -1,34 +1,26 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getAuthToken, clearAuthToken, API_BASE_URL } from "@/lib/queryClient";
 
 export interface User {
   id: string;
   email: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  profile_image_url: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  profileImageUrl: string | null;
   role: "super_admin" | "owner" | "admin_outlet" | "finance";
-  assigned_outlet_id: string | null;
+  assignedOutletId: string | null;
 }
 
 export function useAuth() {
-  const token = getAuthToken();
-
   const { data: user, isLoading, error, refetch } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     queryFn: async () => {
-      if (!token) return null;
-      
-      const res = await fetch(`${API_BASE_URL}/api/auth/user`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const res = await fetch("/api/auth/user", {
+        credentials: "include",
       });
       
       if (res.status === 401) {
-        clearAuthToken();
         return null;
       }
       
@@ -38,13 +30,15 @@ export function useAuth() {
       
       return res.json();
     },
-    enabled: !!token,
     staleTime: 1000 * 60 * 5,
     retry: false,
   });
 
-  const logout = () => {
-    clearAuthToken();
+  const logout = async () => {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
     window.location.href = "/admin-login";
   };
 
