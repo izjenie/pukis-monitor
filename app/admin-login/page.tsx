@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, setAuthToken, API_BASE_URL } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { Loader2, Lock } from "lucide-react";
 
 const loginSchema = z.object({
@@ -43,11 +43,21 @@ export default function AdminLoginPage() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
-      const res = await apiRequest("POST", "/api/auth/login", data);
+      const res = await fetch("/api/auth/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Login gagal");
+      }
+      
       return res.json();
     },
-    onSuccess: (data: { access_token: string; user: unknown }) => {
-      setAuthToken(data.access_token);
+    onSuccess: () => {
       toast({
         title: "Berhasil!",
         description: "Login berhasil. Mengalihkan...",
