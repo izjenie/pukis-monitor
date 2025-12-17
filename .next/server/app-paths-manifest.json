@@ -1,6 +1,5 @@
 {
-  "/page": "app/page.js",
   "/api/auth/admin-login/route": "app/api/auth/admin-login/route.js",
-  "/api/auth/user/route": "app/api/auth/user/route.js",
-  "/_not-found/page": "app/_not-found/page.js"
+  "/page": "app/page.js",
+  "/api/auth/user/route": "app/api/auth/user/route.js"
 }

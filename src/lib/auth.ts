@@ -24,9 +24,9 @@ export const sessionOptions: SessionOptions = {
   password: process.env.SESSION_SECRET!,
   cookieName: "pukis_session",
   cookieOptions: {
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     httpOnly: true,
-    sameSite: "lax" as const,
+    sameSite: "none" as const,
     maxAge: 7 * 24 * 60 * 60,
   },
 };
