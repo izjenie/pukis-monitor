@@ -14,13 +14,26 @@ app = FastAPI(
     version="1.0.0"
 )
 
-origins = [
-    "http://localhost:5000",
-    "http://127.0.0.1:5000",
-    os.getenv("REPLIT_DEV_DOMAIN", ""),
-    os.getenv("REPLIT_DOMAINS", ""),
-]
-origins = [o for o in origins if o]
+def get_cors_origins():
+    base_origins = [
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+    ]
+    
+    replit_dev_domain = os.getenv("REPLIT_DEV_DOMAIN", "")
+    if replit_dev_domain:
+        base_origins.append(f"https://{replit_dev_domain}")
+    
+    replit_domains = os.getenv("REPLIT_DOMAINS", "")
+    if replit_domains:
+        for domain in replit_domains.split(","):
+            domain = domain.strip()
+            if domain:
+                base_origins.append(f"https://{domain}")
+    
+    return [o for o in base_origins if o]
+
+origins = get_cors_origins()
 
 app.add_middleware(
     CORSMiddleware,
