@@ -12,12 +12,13 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Separated Architecture (New)
+### Separated Architecture
 
 The application uses a separated frontend/backend architecture:
 - **Frontend**: Next.js 14 (port 5000 in development)
 - **Backend**: Python FastAPI (port 8000)
-- **Database**: SQLite (can be upgraded to PostgreSQL)
+- **Database**: PostgreSQL (using DATABASE_URL environment variable)
+- **Process Manager**: process-compose (runs both frontend and backend)
 
 ### Frontend Architecture
 
@@ -60,8 +61,8 @@ The application uses a separated frontend/backend architecture:
 
 **Database Layer**
 - SQLAlchemy ORM for database operations
-- SQLite database (pukis_monitoring.db)
-- Schema matches original Drizzle/PostgreSQL structure
+- PostgreSQL database (using DATABASE_URL environment variable)
+- psycopg2-binary for PostgreSQL connectivity
 
 ### Project Structure
 
@@ -206,13 +207,22 @@ The application uses four primary tables:
 - `NEXT_PUBLIC_API_URL` - FastAPI backend URL (http://localhost:8000)
 
 **Backend (.env or Replit Secrets):**
-- `JWT_SECRET_KEY` - Secret for JWT signing
-- `SQLITE_DATABASE_URL` - SQLite database path (default: sqlite:///./pukis_monitoring.db)
-- `OBJECT_STORAGE_BUCKET_ID` - For file uploads (optional)
+- `DATABASE_URL` - PostgreSQL connection string
+- `SESSION_SECRET` - Secret for JWT signing
+- `PGDATABASE`, `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` - PostgreSQL credentials
 
 ## Running the Application
 
-**Development (Both Services):**
+**Development (Using process-compose):**
+```bash
+./start.sh
+# Or directly:
+process-compose up -t=false
+# Runs backend on http://localhost:8000
+# Runs frontend on http://localhost:5000
+```
+
+**Manual Development (Separate Terminals):**
 
 Terminal 1 - Backend:
 ```bash
@@ -236,13 +246,8 @@ python seed.py
 
 **Production Build:**
 ```bash
-# Backend
-cd backend
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# Frontend
-npm run build
-npx next start --port 5000
+# Both services with process-compose
+process-compose up -t=false
 ```
 
 ## API Endpoints
