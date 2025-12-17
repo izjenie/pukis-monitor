@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta
+from sqlalchemy import func
 
 from ..database import get_db
-from ..models.models import Sale, Outlet, User
-from ..schemas.schemas import SaleCreate, SaleUpdate, SaleResponse
+from ..models.models import Sale, Outlet, User, Expense
+from ..schemas.schemas import SaleCreate, SaleUpdate, SaleResponse, MTDSummary
 from ..services.auth import get_current_user
 
 router = APIRouter(prefix="/api/sales", tags=["Sales"])
@@ -184,3 +185,78 @@ async def delete_sale(
     db.commit()
     
     return {"message": "Data penjualan berhasil dihapus"}
+
+def get_mtd_period(date: datetime = None):
+    if date is None:
+        date = datetime.now()
+    
+    if date.day <= 10:
+        if date.month == 1:
+            start = datetime(date.year - 1, 12, 11)
+        else:
+            start = datetime(date.year, date.month - 1, 11)
+        end = datetime(date.year, date.month, 10)
+    else:
+        start = datetime(date.year, date.month, 11)
+        if date.month == 12:
+            end = datetime(date.year + 1, 1, 10)
+        else:
+            end = datetime(date.year, date.month + 1, 10)
+    
+    return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
+
+@router.get("/mtd", response_model=List[MTDSummary])
+async def get_mtd_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    period_start, period_end = get_mtd_period()
+    
+    if current_user.role == "admin_outlet" and current_user.assigned_outlet_id:
+        outlets = db.query(Outlet).filter(Outlet.id == current_user.assigned_outlet_id).all()
+    else:
+        outlets = db.query(Outlet).all()
+    
+    results = []
+    
+    for outlet in outlets:
+        sales = db.query(Sale).filter(
+            Sale.outlet_id == outlet.id,
+            Sale.date >= period_start,
+            Sale.date <= period_end
+        ).all()
+        
+        total_revenue = 0
+        total_sold = 0
+        
+        for sale in sales:
+            total_revenue += sale.cash + sale.qris + sale.grab + sale.gofood + sale.shopee + sale.tiktok
+            total_sold += sale.total_sold
+        
+        total_cogs = total_sold * outlet.cogs_per_piece
+        
+        expenses = db.query(Expense).filter(
+            Expense.outlet_id == outlet.id,
+            Expense.date >= period_start,
+            Expense.date <= period_end
+        ).all()
+        
+        total_expenses = sum(e.amount for e in expenses)
+        gross_profit = total_revenue - total_cogs
+        net_profit = gross_profit - total_expenses
+        
+        results.append(MTDSummary(
+            outlet_id=outlet.id,
+            outlet_name=outlet.name,
+            period_start=period_start,
+            period_end=period_end,
+            total_revenue=total_revenue,
+            total_expenses=total_expenses,
+            total_cogs=total_cogs,
+            gross_profit=gross_profit,
+            net_profit=net_profit,
+            total_sold=total_sold,
+            days_count=len(sales)
+        ))
+    
+    return results

@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from .database import engine, Base
-from .routers import auth, outlets, sales, expenses
+from .routers import auth, outlets, sales, expenses, super_admin
 
 Base.metadata.create_all(bind=engine)
 
@@ -22,13 +22,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-os.makedirs("uploads/proofs", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+upload_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+os.makedirs(os.path.join(upload_dir, "proofs"), exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
 
 app.include_router(auth.router)
 app.include_router(outlets.router)
 app.include_router(sales.router)
 app.include_router(expenses.router)
+app.include_router(super_admin.router)
 
 @app.get("/")
 async def root():
