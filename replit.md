@@ -12,13 +12,12 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Separated Architecture
+### Separated Architecture (New)
 
 The application uses a separated frontend/backend architecture:
 - **Frontend**: Next.js 14 (port 5000 in development)
 - **Backend**: Python FastAPI (port 8000)
-- **Database**: PostgreSQL (using DATABASE_URL environment variable)
-- **Process Manager**: process-compose (runs both frontend and backend)
+- **Database**: SQLite (can be upgraded to PostgreSQL)
 
 ### Frontend Architecture
 
@@ -61,8 +60,8 @@ The application uses a separated frontend/backend architecture:
 
 **Database Layer**
 - SQLAlchemy ORM for database operations
-- PostgreSQL database (using DATABASE_URL environment variable)
-- psycopg2-binary for PostgreSQL connectivity
+- SQLite database (pukis_monitoring.db)
+- Schema matches original Drizzle/PostgreSQL structure
 
 ### Project Structure
 
@@ -207,22 +206,13 @@ The application uses four primary tables:
 - `NEXT_PUBLIC_API_URL` - FastAPI backend URL (http://localhost:8000)
 
 **Backend (.env or Replit Secrets):**
-- `DATABASE_URL` - PostgreSQL connection string
-- `SESSION_SECRET` - Secret for JWT signing
-- `PGDATABASE`, `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` - PostgreSQL credentials
+- `JWT_SECRET_KEY` - Secret for JWT signing
+- `SQLITE_DATABASE_URL` - SQLite database path (default: sqlite:///./pukis_monitoring.db)
+- `OBJECT_STORAGE_BUCKET_ID` - For file uploads (optional)
 
 ## Running the Application
 
-**Development (Using process-compose):**
-```bash
-./start.sh
-# Or directly:
-process-compose up -t=false
-# Runs backend on http://localhost:8000
-# Runs frontend on http://localhost:5000
-```
-
-**Manual Development (Separate Terminals):**
+**Development (Both Services):**
 
 Terminal 1 - Backend:
 ```bash
@@ -246,8 +236,13 @@ python seed.py
 
 **Production Build:**
 ```bash
-# Both services with process-compose
-process-compose up -t=false
+# Backend
+cd backend
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# Frontend
+npm run build
+npx next start --port 5000
 ```
 
 ## API Endpoints

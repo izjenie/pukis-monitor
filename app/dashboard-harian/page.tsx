@@ -64,13 +64,13 @@ function DashboardHarianContent() {
   const [editingSale, setEditingSale] = useState<SalesWithCalculations | null>(null);
 
   const { data: outlets, isLoading: outletsLoading } = useQuery<Outlet[]>({
-    queryKey: ["/outlets"],
+    queryKey: ["/api/outlets"],
   });
 
   const { data: allSales, isLoading: salesLoading, error: salesError } = useQuery<
     SalesWithCalculations[]
   >({
-    queryKey: ["/sales", { date: selectedDate }],
+    queryKey: ["/api/sales", { date: selectedDate }],
   });
 
   const editForm = useForm<InsertSales>({
@@ -94,14 +94,14 @@ function DashboardHarianContent() {
 
   const updateSalesMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertSales> }) => {
-      return await apiRequest("PATCH", `/sales/${id}`, data);
+      return await apiRequest("PATCH", `/api/sales/${id}`, data);
     },
     onSuccess: () => {
       toast({
         title: "Berhasil!",
         description: "Data penjualan berhasil diperbarui",
       });
-      queryClient.invalidateQueries({ queryKey: ["/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       setIsEditDialogOpen(false);
       setEditingSale(null);
       editForm.reset();
@@ -171,7 +171,7 @@ function DashboardHarianContent() {
   const mtdPeriod = getMTDPeriod(currentDate);
 
   const { data: mtdSales } = useQuery<SalesWithCalculations[]>({
-    queryKey: ["/sales/mtd", { date: selectedDate, outletId: selectedOutlet }],
+    queryKey: ["/api/sales/mtd", { date: selectedDate, outletId: selectedOutlet }],
   });
 
   const mtdTotals = mtdSales?.reduce(

@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["cargo", "libiconv", "rustc", "process-compose"]
+packages = ["cargo", "libiconv", "rustc"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -16,12 +16,12 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 8000
-externalPort = 8000
+localPort = 5001
+externalPort = 3003
 
 [[ports]]
-localPort = 8080
-externalPort = 8080
+localPort = 8000
+externalPort = 8000
 
 [env]
 PORT = "5000"
@@ -44,7 +44,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "./start.sh"
+args = "npx next dev --port 5000"
 
 [agent]
 integrations = ["javascript_mem_db:1.0.0", "javascript_log_in_with_replit:1.0.0"]

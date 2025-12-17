@@ -90,7 +90,7 @@ function OutletsContent() {
   const [isDeleteAllSalesDialogOpen, setIsDeleteAllSalesDialogOpen] = useState(false);
 
   const { data: outlets, isLoading } = useQuery<Outlet[]>({
-    queryKey: ["/outlets"],
+    queryKey: ["/api/outlets"],
   });
 
   const form = useForm<InsertOutlet>({
@@ -103,14 +103,14 @@ function OutletsContent() {
 
   const createOutletMutation = useMutation({
     mutationFn: async (data: InsertOutlet) => {
-      return await apiRequest("POST", "/outlets", data);
+      return await apiRequest("POST", "/api/outlets", data);
     },
     onSuccess: () => {
       toast({
         title: "Berhasil!",
         description: "Outlet berhasil ditambahkan",
       });
-      queryClient.invalidateQueries({ queryKey: ["/outlets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/outlets"] });
       setIsDialogOpen(false);
       form.reset();
       setEditingOutlet(null);
@@ -126,14 +126,14 @@ function OutletsContent() {
 
   const updateOutletMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: InsertOutlet }) => {
-      return await apiRequest("PATCH", `/outlets/${id}`, data);
+      return await apiRequest("PATCH", `/api/outlets/${id}`, data);
     },
     onSuccess: () => {
       toast({
         title: "Berhasil!",
         description: "Outlet berhasil diperbarui",
       });
-      queryClient.invalidateQueries({ queryKey: ["/outlets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/outlets"] });
       setIsDialogOpen(false);
       form.reset();
       setEditingOutlet(null);
@@ -149,16 +149,16 @@ function OutletsContent() {
 
   const deleteOutletMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/outlets/${id}`);
+      return await apiRequest("DELETE", `/api/outlets/${id}`);
     },
     onSuccess: () => {
       toast({
         title: "Berhasil!",
         description: "Outlet dan semua datanya berhasil dihapus",
       });
-      queryClient.invalidateQueries({ queryKey: ["/outlets"] });
-      queryClient.invalidateQueries({ queryKey: ["/sales"] });
-      queryClient.invalidateQueries({ queryKey: ["/expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/outlets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
       setIsDeleteDialogOpen(false);
       setDeletingOutlet(null);
     },
@@ -173,18 +173,18 @@ function OutletsContent() {
 
   const deleteSaleMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/sales/${id}`);
+      return await apiRequest("DELETE", `/api/sales/${id}`);
     },
     onSuccess: () => {
       toast({
         title: "Berhasil!",
         description: "Data penjualan berhasil dihapus",
       });
-      queryClient.invalidateQueries({ queryKey: ["/outlets"] });
-      queryClient.invalidateQueries({ queryKey: ["/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/outlets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       if (viewingSalesOutlet) {
-        queryClient.invalidateQueries({ queryKey: [`/outlets/${viewingSalesOutlet.id}/sales`] });
-        queryClient.invalidateQueries({ queryKey: [`/outlets/${viewingSalesOutlet.id}/summary`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/outlets/${viewingSalesOutlet.id}/sales`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/outlets/${viewingSalesOutlet.id}/summary`] });
       }
       setIsDeleteSalesDialogOpen(false);
       setDeletingSale(null);
@@ -200,18 +200,18 @@ function OutletsContent() {
 
   const deleteAllSalesMutation = useMutation({
     mutationFn: async (outletId: string) => {
-      return await apiRequest("DELETE", `/outlets/${outletId}/sales`);
+      return await apiRequest("DELETE", `/api/outlets/${outletId}/sales`);
     },
     onSuccess: () => {
       toast({
         title: "Berhasil!",
         description: "Semua data penjualan outlet berhasil dihapus",
       });
-      queryClient.invalidateQueries({ queryKey: ["/outlets"] });
-      queryClient.invalidateQueries({ queryKey: ["/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/outlets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       if (viewingSalesOutlet) {
-        queryClient.invalidateQueries({ queryKey: [`/outlets/${viewingSalesOutlet.id}/sales`] });
-        queryClient.invalidateQueries({ queryKey: [`/outlets/${viewingSalesOutlet.id}/summary`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/outlets/${viewingSalesOutlet.id}/sales`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/outlets/${viewingSalesOutlet.id}/summary`] });
       }
       setIsDeleteAllSalesDialogOpen(false);
     },
@@ -225,7 +225,7 @@ function OutletsContent() {
   });
 
   const { data: outletSales, isLoading: salesLoading } = useQuery<SalesWithCalculations[]>({
-    queryKey: [`/outlets/${viewingSalesOutlet?.id}/sales`],
+    queryKey: [`/api/outlets/${viewingSalesOutlet?.id}/sales`],
     enabled: !!viewingSalesOutlet,
   });
 
@@ -669,7 +669,7 @@ function OutletCard({
   formatCurrency: (amount: number) => string;
 }) {
   const { data: summary, isLoading } = useQuery<OutletSummary>({
-    queryKey: [`/outlets/${outlet.id}/summary`, { date: selectedDate }],
+    queryKey: [`/api/outlets/${outlet.id}/summary`, { date: selectedDate }],
   });
 
   const formatPeriod = (start: string, end: string) => {

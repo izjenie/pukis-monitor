@@ -77,7 +77,7 @@ function ExpensesContent() {
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"));
 
   const { data: user } = useQuery<User | null>({
-    queryKey: ["/auth/user"],
+    queryKey: ["/api/auth/user"],
     retry: false,
   });
 
@@ -108,12 +108,12 @@ function ExpensesContent() {
   });
 
   const { data: outlets = [] } = useQuery<Outlet[]>({
-    queryKey: ["/outlets"],
+    queryKey: ["/api/outlets"],
   });
 
   const shouldFetchDailyExpenses = selectedOutletId && selectedDate;
   const { data: dailyExpenses = [], isLoading: dailyLoading } = useQuery<ExpenseWithOutlet[]>({
-    queryKey: ["/expenses", { 
+    queryKey: ["/api/expenses", { 
       date: selectedDate, 
       outletId: selectedOutletId,
       type: "harian"
@@ -124,7 +124,7 @@ function ExpensesContent() {
   const monthStart = `${selectedMonth}-01`;
   const monthEnd = `${selectedMonth}-31`;
   const { data: monthlyExpenses = [], isLoading: monthlyLoading } = useQuery<ExpenseWithOutlet[]>({
-    queryKey: ["/expenses", { 
+    queryKey: ["/api/expenses", { 
       outletId: selectedOutletId === "" ? undefined : selectedOutletId,
       type: "bulanan"
     }],
@@ -138,7 +138,7 @@ function ExpensesContent() {
   }, [monthlyExpenses, selectedMonth]);
 
   const { data: salaryExpenses = [], isLoading: salaryLoading } = useQuery<ExpenseWithOutlet[]>({
-    queryKey: ["/expenses", { 
+    queryKey: ["/api/expenses", { 
       outletId: selectedOutletId === "" ? undefined : selectedOutletId,
       type: "gaji"
     }],
@@ -153,7 +153,7 @@ function ExpensesContent() {
   }, [salaryExpenses, selectedMonth]);
 
   const { data: salesData = [] } = useQuery<SalesWithCalculations[]>({
-    queryKey: ["/sales", { date: selectedDate, outletId: selectedOutletId }],
+    queryKey: ["/api/sales", { date: selectedDate, outletId: selectedOutletId }],
     enabled: !!shouldFetchDailyExpenses,
   });
 
@@ -183,9 +183,9 @@ function ExpensesContent() {
   }, [shouldFetchDailyExpenses, salesData, dailyExpenses, selectedOutlet]);
 
   const createMutation = useMutation({
-    mutationFn: (data: InsertExpense) => apiRequest("POST", "/expenses", data),
+    mutationFn: (data: InsertExpense) => apiRequest("POST", "/api/expenses", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
       toast({
         title: "Berhasil!",
         description: "Pengeluaran berhasil ditambahkan",
@@ -204,9 +204,9 @@ function ExpensesContent() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: InsertExpense }) =>
-      apiRequest("PATCH", `/expenses/${id}`, data),
+      apiRequest("PATCH", `/api/expenses/${id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
       toast({
         title: "Berhasil!",
         description: "Pengeluaran berhasil diupdate",
@@ -225,9 +225,9 @@ function ExpensesContent() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/expenses/${id}`),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/expenses/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
       toast({
         title: "Berhasil!",
         description: "Pengeluaran berhasil dihapus",
