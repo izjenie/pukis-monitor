@@ -1,5 +1,24 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+const TOKEN_KEY = "pukis_auth_token";
+
+export function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setAuthToken(token: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearAuthToken(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -14,11 +33,18 @@ export async function apiRequest(
 ): Promise<Response> {
   const headers: HeadersInit = {};
   
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
   if (data) {
     headers["Content-Type"] = "application/json";
   }
   
-  const res = await fetch(url, {
+  const fullUrl = url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
+  
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -35,7 +61,7 @@ export const buildQueryUrl = (queryKey: readonly unknown[]): string => {
   const path = queryKey[0] as string;
   
   if (queryKey.length === 1) {
-    return path;
+    return `${API_BASE_URL}${path}`;
   }
   
   const params = queryKey[1];
@@ -47,10 +73,10 @@ export const buildQueryUrl = (queryKey: readonly unknown[]): string => {
       }
     });
     const queryString = searchParams.toString();
-    return queryString ? `${path}?${queryString}` : path;
+    return queryString ? `${API_BASE_URL}${path}?${queryString}` : `${API_BASE_URL}${path}`;
   }
   
-  return queryKey.join("/");
+  return `${API_BASE_URL}${queryKey.join("/")}`;
 };
 
 export const getQueryFn: <T>(options: {
@@ -60,8 +86,15 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const url = buildQueryUrl(queryKey);
     
+    const headers: HeadersInit = {};
+    const token = getAuthToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
     const res = await fetch(url, {
       credentials: "include",
+      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

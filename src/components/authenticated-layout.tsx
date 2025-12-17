@@ -98,8 +98,10 @@ export function AuthenticatedLayout({ children, requiredRole }: AuthenticatedLay
   };
 
   const getUserInitials = () => {
-    if (user.first_name && user.last_name) {
-      return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
+    const firstName = user.first_name;
+    const lastName = user.last_name;
+    if (firstName && lastName) {
+      return `${firstName[0]}${lastName[0]}`.toUpperCase();
     }
     if (user.email) {
       return user.email.substring(0, 2).toUpperCase();
@@ -139,7 +141,7 @@ export function AuthenticatedLayout({ children, requiredRole }: AuthenticatedLay
                           : user.email}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {user.role && getRoleLabel(user.role)}
+                        {getRoleLabel(user.role)}
                       </p>
                     </div>
                   </DropdownMenuLabel>
