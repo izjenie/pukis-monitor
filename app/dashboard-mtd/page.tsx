@@ -39,11 +39,11 @@ function DashboardMTDContent() {
   );
 
   const { data: outlets, isLoading: outletsLoading } = useQuery<Outlet[]>({
-    queryKey: ["/api/outlets"],
+    queryKey: ["/outlets"],
   });
 
   const { data: mtdData, isLoading: mtdLoading, error: mtdError } = useQuery<MTDSummary[]>({
-    queryKey: ["/api/sales/mtd-summary", { date: selectedDate }],
+    queryKey: ["/sales/mtd-summary", { date: selectedDate }],
   });
 
   const isLoading = outletsLoading || mtdLoading;

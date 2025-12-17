@@ -46,7 +46,7 @@ function SalesInputContent() {
   const [dailyExpenses, setDailyExpenses] = useState<DailyExpense[]>([]);
 
   const { data: outlets, isLoading: outletsLoading } = useQuery<Outlet[]>({
-    queryKey: ["/api/outlets"],
+    queryKey: ["/outlets"],
   });
 
   const form = useForm<InsertSales>({
@@ -70,7 +70,7 @@ function SalesInputContent() {
 
   const createSalesMutation = useMutation({
     mutationFn: async (data: InsertSales) => {
-      return await apiRequest("POST", "/api/sales", data);
+      return await apiRequest("POST", "/sales", data);
     },
   });
 
@@ -112,27 +112,27 @@ function SalesInputContent() {
               description: expense.description,
               amount: expense.amount,
             };
-            const expenseResponse = await apiRequest("POST", "/api/expenses", expenseData);
+            const expenseResponse = await apiRequest("POST", "/expenses", expenseData);
             const createdExpense = await expenseResponse.json();
             createdExpenseIds.push(createdExpense.id);
           }
         } catch (expenseError) {
           try {
-            await apiRequest("DELETE", `/api/sales/${sale.id}`);
+            await apiRequest("DELETE", `/sales/${sale.id}`);
           } catch (saleDeleteError) {
             console.error("Failed to delete sale during rollback:", saleDeleteError);
           }
           
           for (const expenseId of createdExpenseIds) {
             try {
-              await apiRequest("DELETE", `/api/expenses/${expenseId}`);
+              await apiRequest("DELETE", `/expenses/${expenseId}`);
             } catch (expenseDeleteError) {
               console.error("Failed to delete expense during rollback:", expenseDeleteError);
             }
           }
 
-          queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+          queryClient.invalidateQueries({ queryKey: ["/sales"] });
+          queryClient.invalidateQueries({ queryKey: ["/expenses"] });
           
           toast({
             title: "Gagal menyimpan",
@@ -143,8 +143,8 @@ function SalesInputContent() {
         }
       }
 
-      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/expenses"] });
 
       toast({
         title: "Berhasil!",

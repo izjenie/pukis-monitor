@@ -85,7 +85,7 @@ function AdminsContent() {
   const [deletingAdmin, setDeletingAdmin] = useState<Admin | null>(null);
 
   const { data: admins, isLoading, error } = useQuery<Admin[]>({
-    queryKey: ["/api/super-admin/admins"],
+    queryKey: ["/super-admin/admins"],
   });
 
   const form = useForm<CreateAdminForm>({
@@ -101,14 +101,14 @@ function AdminsContent() {
 
   const createAdminMutation = useMutation({
     mutationFn: async (data: CreateAdminForm) => {
-      return await apiRequest("POST", "/api/super-admin/admins", data);
+      return await apiRequest("POST", "/super-admin/admins", data);
     },
     onSuccess: () => {
       toast({
         title: "Berhasil!",
         description: "Admin berhasil dibuat",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/admins"] });
+      queryClient.invalidateQueries({ queryKey: ["/super-admin/admins"] });
       setIsDialogOpen(false);
       form.reset();
     },
@@ -123,14 +123,14 @@ function AdminsContent() {
 
   const deleteAdminMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/super-admin/admins/${id}`);
+      return await apiRequest("DELETE", `/super-admin/admins/${id}`);
     },
     onSuccess: () => {
       toast({
         title: "Berhasil!",
         description: "Admin berhasil dihapus",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/admins"] });
+      queryClient.invalidateQueries({ queryKey: ["/super-admin/admins"] });
       setIsDeleteDialogOpen(false);
       setDeletingAdmin(null);
     },

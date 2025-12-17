@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getAuthToken, clearAuthToken, queryClient } from "@/lib/queryClient";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = "/api/proxy";
 
 export interface User {
   id: string;
@@ -17,14 +17,14 @@ export interface User {
 
 export function useAuth() {
   const { data: user, isLoading, error, refetch } = useQuery<User | null>({
-    queryKey: ["/api/auth/user"],
+    queryKey: ["/auth/user"],
     queryFn: async () => {
       const token = getAuthToken();
       if (!token) {
         return null;
       }
       
-      const res = await fetch(`${API_BASE_URL}/api/auth/user`, {
+      const res = await fetch(`${API_BASE_URL}/auth/user`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -48,7 +48,7 @@ export function useAuth() {
 
   const logout = async () => {
     clearAuthToken();
-    queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    queryClient.invalidateQueries({ queryKey: ["/auth/user"] });
     window.location.href = "/admin-login";
   };
 

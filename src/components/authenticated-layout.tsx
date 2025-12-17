@@ -54,13 +54,8 @@ export function AuthenticatedLayout({ children, requiredRole }: AuthenticatedLay
             Sistem monitoring penjualan dan pengeluaran untuk outlet Pukis
           </p>
           <div className="flex flex-col gap-3 items-center">
-            <Link href="/api/auth/login">
-              <Button size="lg" className="min-w-[200px]" data-testid="button-login">
-                Masuk dengan Replit
-              </Button>
-            </Link>
             <Link href="/admin-login">
-              <Button variant="outline" size="lg" className="min-w-[200px]" data-testid="button-admin-login">
+              <Button size="lg" className="min-w-[200px]" data-testid="button-admin-login">
                 Login Admin
               </Button>
             </Link>

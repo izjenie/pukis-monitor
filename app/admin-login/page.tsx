@@ -43,7 +43,7 @@ export default function AdminLoginPage() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
-      const res = await apiRequest("POST", "/api/auth/login", data);
+      const res = await apiRequest("POST", "/auth/login", data);
       return res.json();
     },
     onSuccess: (data: { access_token: string }) => {
@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
         title: "Berhasil!",
         description: "Login berhasil. Mengalihkan...",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/auth/user"] });
       router.push("/");
     },
     onError: (error: Error) => {
