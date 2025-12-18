@@ -19,9 +19,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+allowed_origins = [
+    "http://localhost:5000",
+    "http://localhost:3000",
+    "http://127.0.0.1:5000",
+]
+
+replit_domains = os.getenv("REPLIT_DOMAINS", "")
+if replit_domains:
+    for domain in replit_domains.split(","):
+        allowed_origins.append(f"https://{domain.strip()}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
