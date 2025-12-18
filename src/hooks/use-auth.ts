@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getAuthToken, clearAuthToken, API_BASE_URL } from "@/lib/queryClient";
+import { getAuthToken, clearAuthToken } from "@/lib/queryClient";
 
 export interface User {
   id: string;
@@ -15,7 +15,7 @@ export interface User {
 
 export function useAuth() {
   const { data: user, isLoading, error, refetch } = useQuery<User | null>({
-    queryKey: ["/api/auth/user"],
+    queryKey: ["/api/admin-auth/user"],
     queryFn: async () => {
       const token = getAuthToken();
       
@@ -23,11 +23,10 @@ export function useAuth() {
         return null;
       }
       
-      const res = await fetch(`${API_BASE_URL}/api/auth/user`, {
+      const res = await fetch("/api/admin-auth/user", {
         headers: {
           "Authorization": `Bearer ${token}`,
         },
-        credentials: "include",
       });
       
       if (res.status === 401) {

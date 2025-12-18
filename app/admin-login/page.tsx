@@ -62,7 +62,7 @@ export default function AdminLoginPage() {
         title: "Berhasil!",
         description: "Login berhasil. Mengalihkan...",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-auth/user"] });
       router.push("/");
     },
     onError: (error: Error) => {
