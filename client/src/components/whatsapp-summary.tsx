@@ -55,7 +55,7 @@ export function WhatsAppSummary({
 Pendapatan Total: ${formatCurrency(totalRevenue)}
 Total Pukis Terjual: ${totalSold} pcs
 COGS Terpakai: ${formatCurrency(cogsSold)}
-Gross Margin: ${formatCurrency(grossMargin)} (${grossMarginPercentage.toFixed(1)}%)
+Gross Margin: ${formatCurrency(grossMargin)} (${(grossMarginPercentage ?? 0).toFixed(1)}%)
 
 MTD GM (${periodStart}–${periodEnd}): ${formatCurrency(mtdGrossMargin)}
 MTD Total Pukis Terjual (${periodStart}–${periodEnd}): ${mtdTotalSold} pcs

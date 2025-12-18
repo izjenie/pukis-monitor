@@ -10,16 +10,19 @@ from ..services.auth import get_current_user
 
 router = APIRouter(prefix="/api/sales", tags=["Sales"])
 
-def calculate_sale_metrics(sale: Sale, cogs_per_piece: float) -> dict:
+def calculate_sale_metrics(sale: Sale, cogs_per_piece: float, outlet_name: str = None) -> dict:
     total_revenue = sale.cash + sale.qris + sale.grab + sale.gofood + sale.shopee + sale.tiktok
-    total_cogs = sale.total_sold * cogs_per_piece
-    gross_margin = total_revenue - total_cogs
-    margin_percentage = (gross_margin / total_revenue * 100) if total_revenue > 0 else 0
+    cogs_sold = sale.total_sold * cogs_per_piece
+    gross_margin = total_revenue - cogs_sold
+    gross_margin_percentage = (gross_margin / total_revenue * 100) if total_revenue > 0 else 0
     
     return {
-        "total_revenue": total_revenue,
-        "gross_margin": gross_margin,
-        "margin_percentage": round(margin_percentage, 2)
+        "totalRevenue": total_revenue,
+        "cogsSold": cogs_sold,
+        "grossMargin": gross_margin,
+        "grossMarginPercentage": round(gross_margin_percentage, 2),
+        "outletName": outlet_name,
+        "cogsPerPiece": cogs_per_piece
     }
 
 @router.get("", response_model=List[SaleResponse])
@@ -51,7 +54,8 @@ async def get_sales(
         outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
         outlet = outlet_result.scalar_one_or_none()
         cogs = outlet.cogs_per_piece if outlet else 0
-        metrics = calculate_sale_metrics(sale, cogs)
+        outlet_name = outlet.name if outlet else None
+        metrics = calculate_sale_metrics(sale, cogs, outlet_name)
         
         sale_dict = SaleResponse.model_validate(sale).model_dump()
         sale_dict.update(metrics)
@@ -83,7 +87,8 @@ async def get_sale(
     outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
     outlet = outlet_result.scalar_one_or_none()
     cogs = outlet.cogs_per_piece if outlet else 0
-    metrics = calculate_sale_metrics(sale, cogs)
+    outlet_name = outlet.name if outlet else None
+    metrics = calculate_sale_metrics(sale, cogs, outlet_name)
     
     sale_dict = SaleResponse.model_validate(sale).model_dump()
     sale_dict.update(metrics)
@@ -125,7 +130,8 @@ async def create_sale(
     outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
     outlet = outlet_result.scalar_one_or_none()
     cogs = outlet.cogs_per_piece if outlet else 0
-    metrics = calculate_sale_metrics(sale, cogs)
+    outlet_name = outlet.name if outlet else None
+    metrics = calculate_sale_metrics(sale, cogs, outlet_name)
     
     sale_dict = SaleResponse.model_validate(sale).model_dump()
     sale_dict.update(metrics)
@@ -164,7 +170,8 @@ async def update_sale(
     outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
     outlet = outlet_result.scalar_one_or_none()
     cogs = outlet.cogs_per_piece if outlet else 0
-    metrics = calculate_sale_metrics(sale, cogs)
+    outlet_name = outlet.name if outlet else None
+    metrics = calculate_sale_metrics(sale, cogs, outlet_name)
     
     sale_dict = SaleResponse.model_validate(sale).model_dump()
     sale_dict.update(metrics)

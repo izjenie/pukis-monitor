@@ -93,9 +93,12 @@ class SaleUpdate(BaseModel):
 class SaleResponse(SaleBase):
     id: str
     created_at: Optional[datetime] = None
-    total_revenue: Optional[float] = None
-    gross_margin: Optional[float] = None
-    margin_percentage: Optional[float] = None
+    totalRevenue: Optional[float] = None
+    cogsSold: Optional[float] = None
+    grossMargin: Optional[float] = None
+    grossMarginPercentage: Optional[float] = None
+    outletName: Optional[str] = None
+    cogsPerPiece: Optional[float] = None
     
     class Config:
         from_attributes = True

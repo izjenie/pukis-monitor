@@ -367,7 +367,7 @@ function DashboardHarianContent() {
                         {formatCurrency(sale.grossMargin)}
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        {sale.grossMarginPercentage.toFixed(1)}%
+                        {(sale.grossMarginPercentage ?? 0).toFixed(1)}%
                       </TableCell>
                       <TableCell className="text-center">
                         <Button
@@ -396,7 +396,7 @@ function DashboardHarianContent() {
           totalSold={selectedSale.totalSold}
           cogsSold={selectedSale.cogsSold}
           grossMargin={selectedSale.grossMargin}
-          grossMarginPercentage={selectedSale.grossMarginPercentage}
+          grossMarginPercentage={selectedSale.grossMarginPercentage ?? 0}
           mtdGrossMargin={mtdTotals.grossMargin}
           mtdTotalSold={mtdTotals.sold}
           soldOutTime={selectedSale.soldOutTime || undefined}
