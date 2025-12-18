@@ -6,9 +6,10 @@ import os
 
 from .routers import auth, outlets, sales, expenses
 
+os.makedirs("uploads/proofs", exist_ok=True)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    os.makedirs("uploads/proofs", exist_ok=True)
     yield
 
 app = FastAPI(

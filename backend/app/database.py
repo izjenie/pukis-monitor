@@ -6,15 +6,17 @@ import os
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is required")
+    raise ValueError("DATABASE_URL environment variable is required. Make sure Replit PostgreSQL database is provisioned.")
 
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 elif DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+else:
+    ASYNC_DATABASE_URL = DATABASE_URL
 
 engine = create_async_engine(
-    DATABASE_URL,
+    ASYNC_DATABASE_URL,
     pool_size=5,
     max_overflow=10,
     pool_timeout=30,
