@@ -1,22 +1,40 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from ..database import get_db
 from ..models.models import Sale, Outlet, User
-from ..schemas.schemas import SaleCreate, SaleUpdate, SaleResponse
+from ..schemas.schemas import SaleCreate, SaleUpdate
 from ..services.auth import get_current_user
 
 router = APIRouter(prefix="/api/sales", tags=["Sales"])
 
-def calculate_sale_metrics(sale: Sale, cogs_per_piece: float, outlet_name: str = None) -> dict:
+def sale_to_response(sale: Sale, outlet: Outlet = None) -> dict:
+    cogs_per_piece = outlet.cogs_per_piece if outlet else 0
+    outlet_name = outlet.name if outlet else None
+    
     total_revenue = sale.cash + sale.qris + sale.grab + sale.gofood + sale.shopee + sale.tiktok
     cogs_sold = sale.total_sold * cogs_per_piece
     gross_margin = total_revenue - cogs_sold
     gross_margin_percentage = (gross_margin / total_revenue * 100) if total_revenue > 0 else 0
     
     return {
+        "id": sale.id,
+        "outletId": sale.outlet_id,
+        "date": sale.date,
+        "cash": sale.cash,
+        "qris": sale.qris,
+        "grab": sale.grab,
+        "gofood": sale.gofood,
+        "shopee": sale.shopee,
+        "tiktok": sale.tiktok,
+        "totalSold": sale.total_sold,
+        "remaining": sale.remaining,
+        "returned": sale.returned,
+        "totalProduction": sale.total_production,
+        "soldOutTime": sale.sold_out_time,
+        "createdAt": sale.created_at.isoformat() if sale.created_at else None,
         "totalRevenue": total_revenue,
         "cogsSold": cogs_sold,
         "grossMargin": gross_margin,
@@ -25,11 +43,12 @@ def calculate_sale_metrics(sale: Sale, cogs_per_piece: float, outlet_name: str =
         "cogsPerPiece": cogs_per_piece
     }
 
-@router.get("", response_model=List[SaleResponse])
+@router.get("")
 async def get_sales(
     outlet_id: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
+    date: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -40,6 +59,8 @@ async def get_sales(
     elif outlet_id:
         query = query.where(Sale.outlet_id == outlet_id)
     
+    if date:
+        query = query.where(Sale.date == date)
     if start_date:
         query = query.where(Sale.date >= start_date)
     if end_date:
@@ -53,17 +74,11 @@ async def get_sales(
     for sale in sales:
         outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
         outlet = outlet_result.scalar_one_or_none()
-        cogs = outlet.cogs_per_piece if outlet else 0
-        outlet_name = outlet.name if outlet else None
-        metrics = calculate_sale_metrics(sale, cogs, outlet_name)
-        
-        sale_dict = SaleResponse.model_validate(sale).model_dump()
-        sale_dict.update(metrics)
-        results.append(SaleResponse(**sale_dict))
+        results.append(sale_to_response(sale, outlet))
     
     return results
 
-@router.get("/{sale_id}", response_model=SaleResponse)
+@router.get("/{sale_id}")
 async def get_sale(
     sale_id: str,
     db: AsyncSession = Depends(get_db),
@@ -86,16 +101,10 @@ async def get_sale(
     
     outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
     outlet = outlet_result.scalar_one_or_none()
-    cogs = outlet.cogs_per_piece if outlet else 0
-    outlet_name = outlet.name if outlet else None
-    metrics = calculate_sale_metrics(sale, cogs, outlet_name)
     
-    sale_dict = SaleResponse.model_validate(sale).model_dump()
-    sale_dict.update(metrics)
-    
-    return SaleResponse(**sale_dict)
+    return sale_to_response(sale, outlet)
 
-@router.post("", response_model=SaleResponse)
+@router.post("")
 async def create_sale(
     request: SaleCreate,
     db: AsyncSession = Depends(get_db),
@@ -129,16 +138,10 @@ async def create_sale(
     
     outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
     outlet = outlet_result.scalar_one_or_none()
-    cogs = outlet.cogs_per_piece if outlet else 0
-    outlet_name = outlet.name if outlet else None
-    metrics = calculate_sale_metrics(sale, cogs, outlet_name)
     
-    sale_dict = SaleResponse.model_validate(sale).model_dump()
-    sale_dict.update(metrics)
-    
-    return SaleResponse(**sale_dict)
+    return sale_to_response(sale, outlet)
 
-@router.patch("/{sale_id}", response_model=SaleResponse)
+@router.patch("/{sale_id}")
 async def update_sale(
     sale_id: str,
     request: SaleUpdate,
@@ -169,14 +172,8 @@ async def update_sale(
     
     outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
     outlet = outlet_result.scalar_one_or_none()
-    cogs = outlet.cogs_per_piece if outlet else 0
-    outlet_name = outlet.name if outlet else None
-    metrics = calculate_sale_metrics(sale, cogs, outlet_name)
     
-    sale_dict = SaleResponse.model_validate(sale).model_dump()
-    sale_dict.update(metrics)
-    
-    return SaleResponse(**sale_dict)
+    return sale_to_response(sale, outlet)
 
 @router.delete("/{sale_id}")
 async def delete_sale(

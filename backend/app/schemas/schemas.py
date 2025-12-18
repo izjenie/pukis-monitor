@@ -60,6 +60,24 @@ class OutletResponse(OutletBase):
         from_attributes = True
 
 class SaleBase(BaseModel):
+    outletId: str = Field(alias="outlet_id")
+    date: str
+    cash: int = 0
+    qris: int = 0
+    grab: int = 0
+    gofood: int = 0
+    shopee: int = 0
+    tiktok: int = 0
+    totalSold: int = Field(default=0, alias="total_sold")
+    remaining: int = 0
+    returned: int = 0
+    totalProduction: int = Field(default=0, alias="total_production")
+    soldOutTime: Optional[str] = Field(default=None, alias="sold_out_time")
+    
+    class Config:
+        populate_by_name = True
+
+class SaleCreate(BaseModel):
     outlet_id: str
     date: str
     cash: int = 0
@@ -74,9 +92,6 @@ class SaleBase(BaseModel):
     total_production: int = 0
     sold_out_time: Optional[str] = None
 
-class SaleCreate(SaleBase):
-    pass
-
 class SaleUpdate(BaseModel):
     cash: Optional[int] = None
     qris: Optional[int] = None
@@ -90,9 +105,22 @@ class SaleUpdate(BaseModel):
     total_production: Optional[int] = None
     sold_out_time: Optional[str] = None
 
-class SaleResponse(SaleBase):
+class SaleResponse(BaseModel):
     id: str
-    created_at: Optional[datetime] = None
+    outletId: str = Field(alias="outlet_id")
+    date: str
+    cash: int = 0
+    qris: int = 0
+    grab: int = 0
+    gofood: int = 0
+    shopee: int = 0
+    tiktok: int = 0
+    totalSold: int = Field(default=0, alias="total_sold")
+    remaining: int = 0
+    returned: int = 0
+    totalProduction: int = Field(default=0, alias="total_production")
+    soldOutTime: Optional[str] = Field(default=None, alias="sold_out_time")
+    createdAt: Optional[datetime] = Field(default=None, alias="created_at")
     totalRevenue: Optional[float] = None
     cogsSold: Optional[float] = None
     grossMargin: Optional[float] = None
@@ -102,6 +130,7 @@ class SaleResponse(SaleBase):
     
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 class ExpenseBase(BaseModel):
     outlet_id: str
