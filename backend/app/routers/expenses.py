@@ -18,19 +18,22 @@ UPLOAD_DIR = "uploads/proofs"
 @router.get("", response_model=List[ExpenseResponse])
 async def get_expenses(
     outlet_id: Optional[str] = Query(None),
+    outletId: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    effective_outlet_id = outlet_id or outletId
+    
     query = select(Expense)
     
     if current_user.role == "admin_outlet" and current_user.assigned_outlet_id:
         query = query.where(Expense.outlet_id == current_user.assigned_outlet_id)
         query = query.where(Expense.type != "gaji")
-    elif outlet_id:
-        query = query.where(Expense.outlet_id == outlet_id)
+    elif effective_outlet_id:
+        query = query.where(Expense.outlet_id == effective_outlet_id)
     
     if current_user.role not in ["super_admin", "owner"]:
         query = query.where(Expense.type != "gaji")
