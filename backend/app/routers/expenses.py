@@ -7,7 +7,7 @@ import uuid
 import aiofiles
 
 from ..database import get_db
-from ..models.models import Expense, User
+from ..models.models import Expense, User, Outlet
 from ..schemas.schemas import ExpenseCreate, ExpenseUpdate, ExpenseResponse
 from ..services.auth import get_current_user, require_roles
 
@@ -27,7 +27,9 @@ async def get_expenses(
 ):
     effective_outlet_id = outlet_id or outletId
     
-    query = select(Expense)
+    query = select(Expense, Outlet.name.label("outlet_name")).outerjoin(
+        Outlet, Expense.outlet_id == Outlet.id
+    )
     
     if current_user.role == "admin_outlet" and current_user.assigned_outlet_id:
         query = query.where(Expense.outlet_id == current_user.assigned_outlet_id)
@@ -47,9 +49,24 @@ async def get_expenses(
     
     query = query.order_by(Expense.date.desc())
     result = await db.execute(query)
-    expenses = result.scalars().all()
+    rows = result.all()
     
-    return [ExpenseResponse.model_validate(e) for e in expenses]
+    expenses_with_outlet = []
+    for expense, outlet_name in rows:
+        expense_dict = {
+            "id": expense.id,
+            "outlet_id": expense.outlet_id,
+            "date": expense.date,
+            "type": expense.type,
+            "description": expense.description,
+            "amount": expense.amount,
+            "proof_url": expense.proof_url,
+            "created_at": expense.created_at,
+            "outletName": outlet_name
+        }
+        expenses_with_outlet.append(ExpenseResponse(**expense_dict))
+    
+    return expenses_with_outlet
 
 @router.get("/{expense_id}", response_model=ExpenseResponse)
 async def get_expense(

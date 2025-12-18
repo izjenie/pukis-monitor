@@ -152,6 +152,7 @@ class ExpenseUpdate(BaseModel):
 class ExpenseResponse(ExpenseBase):
     id: str
     created_at: Optional[datetime] = None
+    outletName: Optional[str] = None
     
     class Config:
         from_attributes = True
