@@ -1,45 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
-import { storage } from "@/db/storage";
-import { insertExpenseSchema } from "@shared/schema";
-import { getCurrentUser } from "@/lib/auth";
+
+const FASTAPI_URL = process.env.FASTAPI_URL || "http://localhost:8000";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const authHeader = request.headers.get("Authorization");
+    const headers: HeadersInit = {};
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
     }
     
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get("date") || undefined;
-    const outletId = searchParams.get("outletId") || undefined;
-    const type = searchParams.get("type") as "harian" | "bulanan" | undefined;
+    const queryString = searchParams.toString();
+    const url = queryString 
+      ? `${FASTAPI_URL}/api/expenses?${queryString}`
+      : `${FASTAPI_URL}/api/expenses`;
     
-    const expenses = await storage.getExpensesWithOutlet({ date, outletId, type });
-    return NextResponse.json(expenses);
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    const response = await fetch(url, { headers });
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    console.error("Expenses GET proxy error:", error);
+    return NextResponse.json(
+      { detail: "Failed to connect to backend" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-    
+    const authHeader = request.headers.get("Authorization");
     const body = await request.json();
-    const validatedData = insertExpenseSchema.parse(body);
     
-    const outlet = await storage.getOutlet(validatedData.outletId);
-    if (!outlet) {
-      return NextResponse.json({ message: "Outlet tidak ditemukan" }, { status: 404 });
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
     }
     
-    const expense = await storage.createExpense(validatedData);
-    return NextResponse.json(expense, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 400 });
+    const response = await fetch(`${FASTAPI_URL}/api/expenses`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    console.error("Expenses POST proxy error:", error);
+    return NextResponse.json(
+      { detail: "Failed to connect to backend" },
+      { status: 500 }
+    );
   }
 }

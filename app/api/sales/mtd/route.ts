@@ -1,25 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { storage } from "@/db/storage";
-import { getCurrentUser } from "@/lib/auth";
+
+const FASTAPI_URL = process.env.FASTAPI_URL || "http://localhost:8000";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const authHeader = request.headers.get("Authorization");
+    const headers: HeadersInit = {};
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
     }
     
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get("date");
-    const outletId = searchParams.get("outletId") || undefined;
+    const queryString = searchParams.toString();
+    const url = queryString 
+      ? `${FASTAPI_URL}/api/sales/mtd?${queryString}`
+      : `${FASTAPI_URL}/api/sales/mtd`;
     
-    if (!date) {
-      return NextResponse.json({ message: "Parameter date diperlukan" }, { status: 400 });
-    }
-    
-    const sales = await storage.getMTDSales(date, outletId);
-    return NextResponse.json(sales);
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    const response = await fetch(url, { headers });
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    console.error("Sales MTD proxy error:", error);
+    return NextResponse.json(
+      { detail: "Failed to connect to backend" },
+      { status: 500 }
+    );
   }
 }

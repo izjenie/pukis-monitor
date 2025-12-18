@@ -1,34 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { storage } from "@/db/storage";
-import { insertOutletSchema } from "@shared/schema";
-import { getCurrentUser } from "@/lib/auth";
 
-export async function GET() {
+const FASTAPI_URL = process.env.FASTAPI_URL || "http://localhost:8000";
+
+export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const authHeader = request.headers.get("Authorization");
+    const headers: HeadersInit = {};
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
     }
     
-    const outlets = await storage.getOutlets();
-    return NextResponse.json(outlets);
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    const response = await fetch(`${FASTAPI_URL}/api/outlets`, {
+      headers,
+    });
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    console.error("Outlets GET proxy error:", error);
+    return NextResponse.json(
+      { detail: "Failed to connect to backend" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const authHeader = request.headers.get("Authorization");
+    const body = await request.json();
+    
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
     }
     
-    const body = await request.json();
-    const validatedData = insertOutletSchema.parse(body);
-    const outlet = await storage.createOutlet(validatedData);
-    return NextResponse.json(outlet, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 400 });
+    const response = await fetch(`${FASTAPI_URL}/api/outlets`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    console.error("Outlets POST proxy error:", error);
+    return NextResponse.json(
+      { detail: "Failed to connect to backend" },
+      { status: 500 }
+    );
   }
 }

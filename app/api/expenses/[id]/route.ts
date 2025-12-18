@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { storage } from "@/db/storage";
-import { updateExpenseSchema } from "@shared/schema";
-import { getCurrentUser } from "@/lib/auth";
+
+const FASTAPI_URL = process.env.FASTAPI_URL || "http://localhost:8000";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const { id } = await params;
+    const authHeader = request.headers.get("Authorization");
+    const headers: HeadersInit = {};
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
     }
     
-    const { id } = await params;
-    const expense = await storage.getExpenseById(id);
-    if (!expense) {
-      return NextResponse.json({ message: "Data pengeluaran tidak ditemukan" }, { status: 404 });
-    }
-    return NextResponse.json(expense);
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    const response = await fetch(`${FASTAPI_URL}/api/expenses/${id}`, { headers });
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    console.error("Expenses GET proxy error:", error);
+    return NextResponse.json(
+      { detail: "Failed to connect to backend" },
+      { status: 500 }
+    );
   }
 }
 
@@ -29,21 +32,32 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const { id } = await params;
+    const authHeader = request.headers.get("Authorization");
+    const body = await request.json();
+    
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
     }
     
-    const { id } = await params;
-    const body = await request.json();
-    const validatedData = updateExpenseSchema.parse(body);
-    const expense = await storage.updateExpense(id, validatedData);
-    if (!expense) {
-      return NextResponse.json({ message: "Data pengeluaran tidak ditemukan" }, { status: 404 });
-    }
-    return NextResponse.json(expense);
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 400 });
+    const response = await fetch(`${FASTAPI_URL}/api/expenses/${id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    console.error("Expenses PATCH proxy error:", error);
+    return NextResponse.json(
+      { detail: "Failed to connect to backend" },
+      { status: 500 }
+    );
   }
 }
 
@@ -52,18 +66,30 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const { id } = await params;
+    const authHeader = request.headers.get("Authorization");
+    const headers: HeadersInit = {};
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
     }
     
-    const { id } = await params;
-    const deleted = await storage.deleteExpense(id);
-    if (!deleted) {
-      return NextResponse.json({ message: "Data pengeluaran tidak ditemukan" }, { status: 404 });
+    const response = await fetch(`${FASTAPI_URL}/api/expenses/${id}`, {
+      method: "DELETE",
+      headers,
+    });
+
+    if (response.status === 204) {
+      return new NextResponse(null, { status: 204 });
     }
-    return new NextResponse(null, { status: 204 });
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    console.error("Expenses DELETE proxy error:", error);
+    return NextResponse.json(
+      { detail: "Failed to connect to backend" },
+      { status: 500 }
+    );
   }
 }
