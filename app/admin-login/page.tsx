@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, setAuthToken, API_BASE_URL } from "@/lib/queryClient";
+import { queryClient, setAuthToken } from "@/lib/queryClient";
 import { Loader2, Lock } from "lucide-react";
 
 const loginSchema = z.object({
@@ -43,11 +43,10 @@ export default function AdminLoginPage() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
-      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const res = await fetch("/api/admin-auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       
       if (!res.ok) {
