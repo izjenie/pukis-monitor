@@ -8,13 +8,26 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format, subMonths, addMonths } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
+const getPeriodDates = (monthValue: string) => {
+  const [year, month] = monthValue.split("-").map(Number);
+  const startDate = new Date(year, month - 1, 10);
+  const endDate = new Date(year, month, 9);
+  return {
+    start: format(startDate, "yyyy-MM-dd"),
+    end: format(endDate, "yyyy-MM-dd"),
+    startLabel: format(startDate, "d MMM", { locale: localeId }),
+    endLabel: format(endDate, "d MMM yyyy", { locale: localeId }),
+  };
+};
+
 const generateMonthOptions = () => {
   const options = [];
   const now = new Date();
   for (let i = 11; i >= -1; i--) {
     const date = subMonths(now, i);
     const value = format(date, "yyyy-MM");
-    const label = format(date, "MMMM yyyy", { locale: localeId });
+    const period = getPeriodDates(value);
+    const label = `${period.startLabel} - ${period.endLabel}`;
     options.push({ value, label });
   }
   return options;
@@ -133,8 +146,8 @@ function ExpensesContent() {
     enabled: !!shouldFetchDailyExpenses,
   });
 
-  const monthStart = `${selectedMonth}-01`;
-  const monthEnd = `${selectedMonth}-31`;
+  const periodDates = useMemo(() => getPeriodDates(selectedMonth), [selectedMonth]);
+  
   const { data: monthlyExpenses = [], isLoading: monthlyLoading } = useQuery<ExpenseWithOutlet[]>({
     queryKey: ["/api/expenses", { 
       outletId: selectedOutletId === "" ? undefined : selectedOutletId,
@@ -144,10 +157,9 @@ function ExpensesContent() {
 
   const filteredMonthlyExpenses = useMemo(() => {
     return monthlyExpenses.filter(expense => {
-      const expenseMonth = expense.date.substring(0, 7);
-      return expenseMonth === selectedMonth;
+      return expense.date >= periodDates.start && expense.date <= periodDates.end;
     });
-  }, [monthlyExpenses, selectedMonth]);
+  }, [monthlyExpenses, periodDates]);
 
   const { data: salaryExpenses = [], isLoading: salaryLoading } = useQuery<ExpenseWithOutlet[]>({
     queryKey: ["/api/expenses", { 
@@ -159,10 +171,9 @@ function ExpensesContent() {
 
   const filteredSalaryExpenses = useMemo(() => {
     return salaryExpenses.filter(expense => {
-      const expenseMonth = expense.date.substring(0, 7);
-      return expenseMonth === selectedMonth;
+      return expense.date >= periodDates.start && expense.date <= periodDates.end;
     });
-  }, [salaryExpenses, selectedMonth]);
+  }, [salaryExpenses, periodDates]);
 
   const { data: salesData = [] } = useQuery<SalesWithCalculations[]>({
     queryKey: ["/api/sales", { date: selectedDate, outletId: selectedOutletId }],
