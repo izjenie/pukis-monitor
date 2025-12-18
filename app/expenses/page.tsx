@@ -148,18 +148,19 @@ function ExpensesContent() {
 
   const periodDates = useMemo(() => getPeriodDates(selectedMonth), [selectedMonth]);
   
-  const { data: monthlyExpenses = [], isLoading: monthlyLoading } = useQuery<ExpenseWithOutlet[]>({
+  const { data: allPeriodExpenses = [], isLoading: monthlyLoading } = useQuery<ExpenseWithOutlet[]>({
     queryKey: ["/api/expenses", { 
       outletId: selectedOutletId === "" ? undefined : selectedOutletId,
-      type: "bulanan"
+      start_date: periodDates.start,
+      end_date: periodDates.end
     }],
   });
 
   const filteredMonthlyExpenses = useMemo(() => {
-    return monthlyExpenses.filter(expense => {
+    return allPeriodExpenses.filter(expense => {
       return expense.date >= periodDates.start && expense.date <= periodDates.end;
     });
-  }, [monthlyExpenses, periodDates]);
+  }, [allPeriodExpenses, periodDates]);
 
   const { data: salaryExpenses = [], isLoading: salaryLoading } = useQuery<ExpenseWithOutlet[]>({
     queryKey: ["/api/expenses", { 
