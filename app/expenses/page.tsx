@@ -80,12 +80,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { AuthenticatedLayout } from "@/components/authenticated-layout";
 import { 
   Plus, Pencil, Trash2, Receipt, CalendarRange, Store, 
   Calendar, DollarSign, TrendingUp, Package, Loader2, Minus,
-  ArrowRight, Info, Banknote, FileImage, FileText, ExternalLink
+  ArrowRight, Info, Banknote, FileImage, FileText, ExternalLink,
+  ChevronDown, ChevronRight
 } from "lucide-react";
 import type { Outlet, ExpenseWithOutlet } from "@shared/schema";
 import { ObjectUploader } from "@/components/object-uploader";
@@ -100,13 +106,16 @@ function ExpensesContent() {
   const [selectedOutletId, setSelectedOutletId] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"));
+  const [openGroups, setOpenGroups] = useState<{ harian: boolean; bulanan: boolean; gaji: boolean }>({
+    harian: true,
+    bulanan: true,
+    gaji: true,
+  });
 
   const { data: user } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     retry: false,
   });
-
-  const canViewSalary = user?.role === "owner" || user?.role === "super_admin";
 
   const addForm = useForm<InsertExpense>({
     resolver: zodResolver(insertExpenseSchema),
@@ -148,7 +157,7 @@ function ExpensesContent() {
 
   const periodDates = useMemo(() => getPeriodDates(selectedMonth), [selectedMonth]);
   
-  const { data: allPeriodExpenses = [], isLoading: monthlyLoading } = useQuery<ExpenseWithOutlet[]>({
+  const { data: allPeriodExpenses = [], isLoading: periodLoading } = useQuery<ExpenseWithOutlet[]>({
     queryKey: ["/api/expenses", { 
       outletId: selectedOutletId === "" ? undefined : selectedOutletId,
       start_date: periodDates.start,
@@ -156,25 +165,24 @@ function ExpensesContent() {
     }],
   });
 
-  const filteredMonthlyExpenses = useMemo(() => {
-    return allPeriodExpenses.filter(expense => {
+  const groupedExpenses = useMemo(() => {
+    const filtered = allPeriodExpenses.filter(expense => {
       return expense.date >= periodDates.start && expense.date <= periodDates.end;
     });
+    
+    return {
+      harian: filtered.filter(e => e.type === "harian"),
+      bulanan: filtered.filter(e => e.type === "bulanan"),
+      gaji: filtered.filter(e => e.type === "gaji"),
+    };
   }, [allPeriodExpenses, periodDates]);
 
-  const { data: salaryExpenses = [], isLoading: salaryLoading } = useQuery<ExpenseWithOutlet[]>({
-    queryKey: ["/api/expenses", { 
-      outletId: selectedOutletId === "" ? undefined : selectedOutletId,
-      type: "gaji"
-    }],
-    enabled: canViewSalary,
-  });
-
-  const filteredSalaryExpenses = useMemo(() => {
-    return salaryExpenses.filter(expense => {
-      return expense.date >= periodDates.start && expense.date <= periodDates.end;
-    });
-  }, [salaryExpenses, periodDates]);
+  const groupTotals = useMemo(() => ({
+    harian: groupedExpenses.harian.reduce((sum, e) => sum + e.amount, 0),
+    bulanan: groupedExpenses.bulanan.reduce((sum, e) => sum + e.amount, 0),
+    gaji: groupedExpenses.gaji.reduce((sum, e) => sum + e.amount, 0),
+    total: allPeriodExpenses.filter(e => e.date >= periodDates.start && e.date <= periodDates.end).reduce((sum, e) => sum + e.amount, 0),
+  }), [groupedExpenses, allPeriodExpenses, periodDates]);
 
   const { data: salesData = [] } = useQuery<SalesWithCalculations[]>({
     queryKey: ["/api/sales", { date: selectedDate, outletId: selectedOutletId }],
@@ -502,21 +510,21 @@ function ExpensesContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarRange className="h-5 w-5 text-purple-600" />
-            Pengeluaran Bulanan
+            Ringkasan Pengeluaran Periode
           </CardTitle>
           <CardDescription>
-            Pengeluaran tetap bulanan (gaji, sewa, dll)
+            Semua pengeluaran dalam periode yang dipilih
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="monthly-outlet">Filter Outlet</Label>
+              <Label htmlFor="period-outlet">Filter Outlet</Label>
               <Select 
                 value={selectedOutletId || "all"} 
                 onValueChange={(v) => setSelectedOutletId(v === "all" ? "" : v)}
               >
-                <SelectTrigger id="monthly-outlet" data-testid="select-monthly-outlet">
+                <SelectTrigger id="period-outlet" data-testid="select-period-outlet">
                   <SelectValue placeholder="Semua Outlet" />
                 </SelectTrigger>
                 <SelectContent>
@@ -530,10 +538,10 @@ function ExpensesContent() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="monthly-month">Bulan</Label>
+              <Label htmlFor="period-month">Periode</Label>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger id="monthly-month" data-testid="select-monthly-month">
-                  <SelectValue placeholder="Pilih Bulan" />
+                <SelectTrigger id="period-month" data-testid="select-period-month">
+                  <SelectValue placeholder="Pilih Periode" />
                 </SelectTrigger>
                 <SelectContent>
                   {generateMonthOptions().map((month) => (
@@ -546,229 +554,231 @@ function ExpensesContent() {
             </div>
           </div>
 
-          {monthlyLoading ? (
+          <div className="flex justify-end">
+            <Badge variant="default" className="font-mono text-base">
+              Total Keseluruhan: {formatCurrency(groupTotals.total)}
+            </Badge>
+          </div>
+
+          {periodLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : filteredMonthlyExpenses.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground border rounded-lg" data-testid="monthly-empty-state">
-              Belum ada pengeluaran bulanan untuk bulan ini
-            </div>
           ) : (
-            <>
-              <div className="flex justify-end">
-                <Badge variant="secondary" className="font-mono">
-                  Total: {formatCurrency(filteredMonthlyExpenses.reduce((sum, e) => sum + e.amount, 0))}
-                </Badge>
-              </div>
-              <div className="overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tanggal</TableHead>
-                      <TableHead>Outlet</TableHead>
-                      <TableHead>Deskripsi</TableHead>
-                      <TableHead className="text-right">Jumlah</TableHead>
-                      <TableHead className="text-center w-16">Bukti</TableHead>
-                      <TableHead className="text-center w-24">Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredMonthlyExpenses.map((expense) => (
-                      <TableRow key={expense.id} data-testid={`row-expense-${expense.id}`}>
-                        <TableCell data-testid={`text-date-${expense.id}`}>
-                          {formatDate(expense.date)}
-                        </TableCell>
-                        <TableCell data-testid={`text-outlet-${expense.id}`}>
-                          {expense.outletName || "-"}
-                        </TableCell>
-                        <TableCell data-testid={`text-description-${expense.id}`}>
-                          {expense.description}
-                        </TableCell>
-                        <TableCell className="text-right font-medium font-mono" data-testid={`text-amount-${expense.id}`}>
-                          {formatCurrency(expense.amount)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {expense.proofUrl ? (
-                            <a
-                              href={expense.proofUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center text-blue-600 hover:text-blue-800"
-                              data-testid={`link-proof-${expense.id}`}
-                            >
-                              <FileImage className="h-4 w-4" />
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditDialog(expense)}
-                              data-testid={`button-edit-${expense.id}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openDeleteDialog(expense)}
-                              data-testid={`button-delete-${expense.id}`}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
+            <div className="space-y-3">
+              <Collapsible 
+                open={openGroups.harian} 
+                onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, harian: open }))}
+              >
+                <CollapsibleTrigger asChild>
+                  <div className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover-elevate" data-testid="collapsible-harian">
+                    <div className="flex items-center gap-2">
+                      {openGroups.harian ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <Receipt className="h-4 w-4 text-orange-600" />
+                      <span className="font-medium">Pengeluaran Harian</span>
+                      <Badge variant="secondary" className="ml-2">{groupedExpenses.harian.length} item</Badge>
+                    </div>
+                    <Badge variant="outline" className="font-mono">
+                      {formatCurrency(groupTotals.harian)}
+                    </Badge>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  {groupedExpenses.harian.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      Tidak ada pengeluaran harian
+                    </div>
+                  ) : (
+                    <div className="mt-2 overflow-x-auto rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Tanggal</TableHead>
+                            <TableHead>Outlet</TableHead>
+                            <TableHead>Deskripsi</TableHead>
+                            <TableHead className="text-right">Jumlah</TableHead>
+                            <TableHead className="text-center w-16">Bukti</TableHead>
+                            <TableHead className="text-center w-24">Aksi</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {groupedExpenses.harian.map((expense) => (
+                            <TableRow key={expense.id} data-testid={`row-harian-${expense.id}`}>
+                              <TableCell>{formatDate(expense.date)}</TableCell>
+                              <TableCell>{expense.outletName || "-"}</TableCell>
+                              <TableCell>{expense.description}</TableCell>
+                              <TableCell className="text-right font-medium font-mono">
+                                {formatCurrency(expense.amount)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {expense.proofUrl ? (
+                                  <a href={expense.proofUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                                    <FileImage className="h-4 w-4" />
+                                  </a>
+                                ) : <span className="text-muted-foreground">-</span>}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="icon" onClick={() => openEditDialog(expense)}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(expense)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+
+              <Collapsible 
+                open={openGroups.bulanan} 
+                onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, bulanan: open }))}
+              >
+                <CollapsibleTrigger asChild>
+                  <div className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover-elevate" data-testid="collapsible-bulanan">
+                    <div className="flex items-center gap-2">
+                      {openGroups.bulanan ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <CalendarRange className="h-4 w-4 text-purple-600" />
+                      <span className="font-medium">Pengeluaran Bulanan</span>
+                      <Badge variant="secondary" className="ml-2">{groupedExpenses.bulanan.length} item</Badge>
+                    </div>
+                    <Badge variant="outline" className="font-mono">
+                      {formatCurrency(groupTotals.bulanan)}
+                    </Badge>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  {groupedExpenses.bulanan.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      Tidak ada pengeluaran bulanan
+                    </div>
+                  ) : (
+                    <div className="mt-2 overflow-x-auto rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Tanggal</TableHead>
+                            <TableHead>Outlet</TableHead>
+                            <TableHead>Deskripsi</TableHead>
+                            <TableHead className="text-right">Jumlah</TableHead>
+                            <TableHead className="text-center w-16">Bukti</TableHead>
+                            <TableHead className="text-center w-24">Aksi</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {groupedExpenses.bulanan.map((expense) => (
+                            <TableRow key={expense.id} data-testid={`row-bulanan-${expense.id}`}>
+                              <TableCell>{formatDate(expense.date)}</TableCell>
+                              <TableCell>{expense.outletName || "-"}</TableCell>
+                              <TableCell>{expense.description}</TableCell>
+                              <TableCell className="text-right font-medium font-mono">
+                                {formatCurrency(expense.amount)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {expense.proofUrl ? (
+                                  <a href={expense.proofUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                                    <FileImage className="h-4 w-4" />
+                                  </a>
+                                ) : <span className="text-muted-foreground">-</span>}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="icon" onClick={() => openEditDialog(expense)}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(expense)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+
+              <Collapsible 
+                open={openGroups.gaji} 
+                onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, gaji: open }))}
+              >
+                <CollapsibleTrigger asChild>
+                  <div className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover-elevate" data-testid="collapsible-gaji">
+                    <div className="flex items-center gap-2">
+                      {openGroups.gaji ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <Banknote className="h-4 w-4 text-green-600" />
+                      <span className="font-medium">Pengeluaran Gaji</span>
+                      <Badge variant="secondary" className="ml-2">{groupedExpenses.gaji.length} item</Badge>
+                    </div>
+                    <Badge variant="outline" className="font-mono text-green-600">
+                      {formatCurrency(groupTotals.gaji)}
+                    </Badge>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  {groupedExpenses.gaji.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      Tidak ada pengeluaran gaji
+                    </div>
+                  ) : (
+                    <div className="mt-2 overflow-x-auto rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Tanggal</TableHead>
+                            <TableHead>Outlet</TableHead>
+                            <TableHead>Deskripsi</TableHead>
+                            <TableHead className="text-right">Jumlah</TableHead>
+                            <TableHead className="text-center w-16">Bukti</TableHead>
+                            <TableHead className="text-center w-24">Aksi</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {groupedExpenses.gaji.map((expense) => (
+                            <TableRow key={expense.id} data-testid={`row-gaji-${expense.id}`}>
+                              <TableCell>{formatDate(expense.date)}</TableCell>
+                              <TableCell>{expense.outletName || "-"}</TableCell>
+                              <TableCell>{expense.description}</TableCell>
+                              <TableCell className="text-right font-medium font-mono text-green-600">
+                                {formatCurrency(expense.amount)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {expense.proofUrl ? (
+                                  <a href={expense.proofUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                                    <FileImage className="h-4 w-4" />
+                                  </a>
+                                ) : <span className="text-muted-foreground">-</span>}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="icon" onClick={() => openEditDialog(expense)}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(expense)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
           )}
         </CardContent>
       </Card>
-
-      {canViewSalary && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Banknote className="h-5 w-5 text-green-600" />
-              Pengeluaran Gaji
-            </CardTitle>
-            <CardDescription>
-              Pengeluaran gaji karyawan (hanya Owner yang dapat melihat)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="salary-outlet">Filter Outlet</Label>
-                <Select 
-                  value={selectedOutletId || "all"} 
-                  onValueChange={(v) => setSelectedOutletId(v === "all" ? "" : v)}
-                >
-                  <SelectTrigger id="salary-outlet" data-testid="select-salary-outlet">
-                    <SelectValue placeholder="Semua Outlet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Outlet</SelectItem>
-                    {outlets.map((outlet) => (
-                      <SelectItem key={outlet.id} value={outlet.id}>
-                        {outlet.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="salary-month">Bulan</Label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger id="salary-month" data-testid="select-salary-month">
-                    <SelectValue placeholder="Pilih Bulan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {generateMonthOptions().map((month) => (
-                      <SelectItem key={month.value} value={month.value}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {salaryLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : filteredSalaryExpenses.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground border rounded-lg" data-testid="salary-empty-state">
-                Belum ada pengeluaran gaji untuk bulan ini
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-end">
-                  <Badge variant="secondary" className="font-mono bg-green-100 dark:bg-green-900/30">
-                    Total Gaji: {formatCurrency(filteredSalaryExpenses.reduce((sum, e) => sum + e.amount, 0))}
-                  </Badge>
-                </div>
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tanggal</TableHead>
-                        <TableHead>Outlet</TableHead>
-                        <TableHead>Deskripsi</TableHead>
-                        <TableHead className="text-right">Jumlah</TableHead>
-                        <TableHead className="text-center w-16">Bukti</TableHead>
-                        <TableHead className="text-center w-24">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredSalaryExpenses.map((expense) => (
-                        <TableRow key={expense.id} data-testid={`row-salary-${expense.id}`}>
-                          <TableCell data-testid={`text-salary-date-${expense.id}`}>
-                            {formatDate(expense.date)}
-                          </TableCell>
-                          <TableCell data-testid={`text-salary-outlet-${expense.id}`}>
-                            {expense.outletName || "-"}
-                          </TableCell>
-                          <TableCell data-testid={`text-salary-description-${expense.id}`}>
-                            {expense.description}
-                          </TableCell>
-                          <TableCell className="text-right font-medium font-mono text-green-600" data-testid={`text-salary-amount-${expense.id}`}>
-                            {formatCurrency(expense.amount)}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {expense.proofUrl ? (
-                              <a
-                                href={expense.proofUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center text-blue-600 hover:text-blue-800"
-                                data-testid={`link-salary-proof-${expense.id}`}
-                              >
-                                <FileImage className="h-4 w-4" />
-                              </a>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEditDialog(expense)}
-                                data-testid={`button-edit-salary-${expense.id}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openDeleteDialog(expense)}
-                                data-testid={`button-delete-salary-${expense.id}`}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
@@ -832,9 +842,7 @@ function ExpensesContent() {
                       <SelectContent>
                         <SelectItem value="harian">Harian</SelectItem>
                         <SelectItem value="bulanan">Bulanan</SelectItem>
-                        {canViewSalary && (
-                          <SelectItem value="gaji">Gaji</SelectItem>
-                        )}
+                        <SelectItem value="gaji">Gaji</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -987,9 +995,7 @@ function ExpensesContent() {
                       <SelectContent>
                         <SelectItem value="harian">Harian</SelectItem>
                         <SelectItem value="bulanan">Bulanan</SelectItem>
-                        {canViewSalary && (
-                          <SelectItem value="gaji">Gaji</SelectItem>
-                        )}
+                        <SelectItem value="gaji">Gaji</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
