@@ -605,8 +605,17 @@ function ExpensesContent() {
                           {groupedExpenses.harian.map((expense) => (
                             <TableRow key={expense.id} data-testid={`row-harian-${expense.id}`}>
                               <TableCell>{formatDate(expense.date)}</TableCell>
-                              <TableCell>{expense.outletName || "-"}</TableCell>
-                              <TableCell>{expense.description}</TableCell>
+                              <TableCell>
+                                {expense.outletName ? (
+                                  <Badge variant="outline" className="text-xs">{expense.outletName}</Badge>
+                                ) : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <span>{expense.description}</span>
+                                  <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">Harian</Badge>
+                                </div>
+                              </TableCell>
                               <TableCell className="text-right font-medium font-mono">
                                 {formatCurrency(expense.amount)}
                               </TableCell>
@@ -675,8 +684,17 @@ function ExpensesContent() {
                           {groupedExpenses.bulanan.map((expense) => (
                             <TableRow key={expense.id} data-testid={`row-bulanan-${expense.id}`}>
                               <TableCell>{formatDate(expense.date)}</TableCell>
-                              <TableCell>{expense.outletName || "-"}</TableCell>
-                              <TableCell>{expense.description}</TableCell>
+                              <TableCell>
+                                {expense.outletName ? (
+                                  <Badge variant="outline" className="text-xs">{expense.outletName}</Badge>
+                                ) : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <span>{expense.description}</span>
+                                  <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">Bulanan</Badge>
+                                </div>
+                              </TableCell>
                               <TableCell className="text-right font-medium font-mono">
                                 {formatCurrency(expense.amount)}
                               </TableCell>
@@ -745,8 +763,17 @@ function ExpensesContent() {
                           {groupedExpenses.gaji.map((expense) => (
                             <TableRow key={expense.id} data-testid={`row-gaji-${expense.id}`}>
                               <TableCell>{formatDate(expense.date)}</TableCell>
-                              <TableCell>{expense.outletName || "-"}</TableCell>
-                              <TableCell>{expense.description}</TableCell>
+                              <TableCell>
+                                {expense.outletName ? (
+                                  <Badge variant="outline" className="text-xs">{expense.outletName}</Badge>
+                                ) : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <span>{expense.description}</span>
+                                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Gaji</Badge>
+                                </div>
+                              </TableCell>
                               <TableCell className="text-right font-medium font-mono text-green-600">
                                 {formatCurrency(expense.amount)}
                               </TableCell>
