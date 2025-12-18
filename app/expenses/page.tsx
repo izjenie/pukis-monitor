@@ -159,7 +159,7 @@ function ExpensesContent() {
   
   const { data: allPeriodExpenses = [], isLoading: periodLoading } = useQuery<ExpenseWithOutlet[]>({
     queryKey: ["/api/expenses", { 
-      outletId: selectedOutletId === "" ? undefined : selectedOutletId,
+      outlet_id: selectedOutletId === "" ? undefined : selectedOutletId,
       start_date: periodDates.start,
       end_date: periodDates.end
     }],
