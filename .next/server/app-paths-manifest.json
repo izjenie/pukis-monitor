@@ -1,6 +1,13 @@
 {
+  "/api/admin-auth/user/route": "app/api/admin-auth/user/route.js",
   "/page": "app/page.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/admin-auth/login/route": "app/api/admin-auth/login/route.js",
-  "/api/sales/route": "app/api/sales/route.js"
+  "/api/outlets/route": "app/api/outlets/route.js",
+  "/expenses/page": "app/expenses/page.js",
+  "/super-admin/admins/page": "app/super-admin/admins/page.js",
+  "/api/super-admin/admins/route": "app/api/super-admin/admins/route.js",
+  "/api/auth/user/route": "app/api/auth/user/route.js",
+  "/api/expenses/route": "app/api/expenses/route.js",
+  "/dashboard-harian/page": "app/dashboard-harian/page.js",
+  "/api/sales/route": "app/api/sales/route.js",
+  "/api/sales/mtd/route": "app/api/sales/mtd/route.js"
 }
