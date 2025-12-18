@@ -1,5 +1,7 @@
 {
-  "/api/admin-auth/login/route": "app/api/admin-auth/login/route.js",
   "/page": "app/page.js",
-  "/api/sales/route": "app/api/sales/route.js"
+  "/dashboard-harian/page": "app/dashboard-harian/page.js",
+  "/api/admin-auth/login/route": "app/api/admin-auth/login/route.js",
+  "/expenses/page": "app/expenses/page.js",
+  "/api/expenses/route": "app/api/expenses/route.js"
 }
