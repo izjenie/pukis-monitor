@@ -5,8 +5,20 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { format, subMonths, addMonths } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+
+const generateMonthOptions = () => {
+  const options = [];
+  const now = new Date();
+  for (let i = 11; i >= -1; i--) {
+    const date = subMonths(now, i);
+    const value = format(date, "yyyy-MM");
+    const label = format(date, "MMMM yyyy", { locale: localeId });
+    options.push({ value, label });
+  }
+  return options;
+};
 import { insertExpenseSchema, type InsertExpense, type SalesWithCalculations, type User } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -507,13 +519,18 @@ function ExpensesContent() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="monthly-month">Bulan</Label>
-              <Input
-                id="monthly-month"
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                data-testid="input-monthly-month"
-              />
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger id="monthly-month" data-testid="select-monthly-month">
+                  <SelectValue placeholder="Pilih Bulan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {generateMonthOptions().map((month) => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -638,13 +655,18 @@ function ExpensesContent() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="salary-month">Bulan</Label>
-                <Input
-                  id="salary-month"
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  data-testid="input-salary-month"
-                />
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger id="salary-month" data-testid="select-salary-month">
+                    <SelectValue placeholder="Pilih Bulan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {generateMonthOptions().map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
