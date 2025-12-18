@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import List, Optional
-from datetime import datetime, timedelta
 
 from ..database import get_db
 from ..models.models import Sale, Outlet, User
@@ -27,26 +27,29 @@ async def get_sales(
     outlet_id: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Sale)
+    query = select(Sale)
     
     if current_user.role == "admin_outlet" and current_user.assigned_outlet_id:
-        query = query.filter(Sale.outlet_id == current_user.assigned_outlet_id)
+        query = query.where(Sale.outlet_id == current_user.assigned_outlet_id)
     elif outlet_id:
-        query = query.filter(Sale.outlet_id == outlet_id)
+        query = query.where(Sale.outlet_id == outlet_id)
     
     if start_date:
-        query = query.filter(Sale.date >= start_date)
+        query = query.where(Sale.date >= start_date)
     if end_date:
-        query = query.filter(Sale.date <= end_date)
+        query = query.where(Sale.date <= end_date)
     
-    sales = query.order_by(Sale.date.desc()).all()
+    query = query.order_by(Sale.date.desc())
+    result = await db.execute(query)
+    sales = result.scalars().all()
     
     results = []
     for sale in sales:
-        outlet = db.query(Outlet).filter(Outlet.id == sale.outlet_id).first()
+        outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
+        outlet = outlet_result.scalar_one_or_none()
         cogs = outlet.cogs_per_piece if outlet else 0
         metrics = calculate_sale_metrics(sale, cogs)
         
@@ -59,10 +62,11 @@ async def get_sales(
 @router.get("/{sale_id}", response_model=SaleResponse)
 async def get_sale(
     sale_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    sale = db.query(Sale).filter(Sale.id == sale_id).first()
+    result = await db.execute(select(Sale).where(Sale.id == sale_id))
+    sale = result.scalar_one_or_none()
     
     if not sale:
         raise HTTPException(
@@ -76,7 +80,8 @@ async def get_sale(
             detail="Anda tidak memiliki akses ke data ini"
         )
     
-    outlet = db.query(Outlet).filter(Outlet.id == sale.outlet_id).first()
+    outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
+    outlet = outlet_result.scalar_one_or_none()
     cogs = outlet.cogs_per_piece if outlet else 0
     metrics = calculate_sale_metrics(sale, cogs)
     
@@ -88,7 +93,7 @@ async def get_sale(
 @router.post("", response_model=SaleResponse)
 async def create_sale(
     request: SaleCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     if current_user.role == "admin_outlet" and current_user.assigned_outlet_id != request.outlet_id:
@@ -97,10 +102,13 @@ async def create_sale(
             detail="Anda tidak memiliki akses ke outlet ini"
         )
     
-    existing = db.query(Sale).filter(
-        Sale.outlet_id == request.outlet_id,
-        Sale.date == request.date
-    ).first()
+    existing_result = await db.execute(
+        select(Sale).where(
+            Sale.outlet_id == request.outlet_id,
+            Sale.date == request.date
+        )
+    )
+    existing = existing_result.scalar_one_or_none()
     
     if existing:
         raise HTTPException(
@@ -111,10 +119,11 @@ async def create_sale(
     sale = Sale(**request.model_dump())
     
     db.add(sale)
-    db.commit()
-    db.refresh(sale)
+    await db.commit()
+    await db.refresh(sale)
     
-    outlet = db.query(Outlet).filter(Outlet.id == sale.outlet_id).first()
+    outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
+    outlet = outlet_result.scalar_one_or_none()
     cogs = outlet.cogs_per_piece if outlet else 0
     metrics = calculate_sale_metrics(sale, cogs)
     
@@ -127,10 +136,11 @@ async def create_sale(
 async def update_sale(
     sale_id: str,
     request: SaleUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    sale = db.query(Sale).filter(Sale.id == sale_id).first()
+    result = await db.execute(select(Sale).where(Sale.id == sale_id))
+    sale = result.scalar_one_or_none()
     
     if not sale:
         raise HTTPException(
@@ -148,10 +158,11 @@ async def update_sale(
     for key, value in update_data.items():
         setattr(sale, key, value)
     
-    db.commit()
-    db.refresh(sale)
+    await db.commit()
+    await db.refresh(sale)
     
-    outlet = db.query(Outlet).filter(Outlet.id == sale.outlet_id).first()
+    outlet_result = await db.execute(select(Outlet).where(Outlet.id == sale.outlet_id))
+    outlet = outlet_result.scalar_one_or_none()
     cogs = outlet.cogs_per_piece if outlet else 0
     metrics = calculate_sale_metrics(sale, cogs)
     
@@ -163,10 +174,11 @@ async def update_sale(
 @router.delete("/{sale_id}")
 async def delete_sale(
     sale_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    sale = db.query(Sale).filter(Sale.id == sale_id).first()
+    result = await db.execute(select(Sale).where(Sale.id == sale_id))
+    sale = result.scalar_one_or_none()
     
     if not sale:
         raise HTTPException(
@@ -180,7 +192,7 @@ async def delete_sale(
             detail="Anda tidak memiliki akses ke data ini"
         )
     
-    db.delete(sale)
-    db.commit()
+    await db.delete(sale)
+    await db.commit()
     
     return {"message": "Data penjualan berhasil dihapus"}

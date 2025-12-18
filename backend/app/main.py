@@ -1,17 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 import os
 
-from .database import engine, Base
 from .routers import auth, outlets, sales, expenses
 
-Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    os.makedirs("uploads/proofs", exist_ok=True)
+    yield
 
 app = FastAPI(
     title="Pukis Monitoring API",
     description="API Backend untuk aplikasi Pukis Monitoring",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -22,7 +26,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-os.makedirs("uploads/proofs", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(auth.router)

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import List
 
 from ..database import get_db
@@ -11,25 +12,27 @@ router = APIRouter(prefix="/api/outlets", tags=["Outlets"])
 
 @router.get("", response_model=List[OutletResponse])
 async def get_outlets(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     if current_user.role == "admin_outlet" and current_user.assigned_outlet_id:
-        outlets = db.query(Outlet).filter(
-            Outlet.id == current_user.assigned_outlet_id
-        ).all()
+        result = await db.execute(
+            select(Outlet).where(Outlet.id == current_user.assigned_outlet_id)
+        )
     else:
-        outlets = db.query(Outlet).order_by(Outlet.name).all()
+        result = await db.execute(select(Outlet).order_by(Outlet.name))
     
+    outlets = result.scalars().all()
     return [OutletResponse.model_validate(o) for o in outlets]
 
 @router.get("/{outlet_id}", response_model=OutletResponse)
 async def get_outlet(
     outlet_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    outlet = db.query(Outlet).filter(Outlet.id == outlet_id).first()
+    result = await db.execute(select(Outlet).where(Outlet.id == outlet_id))
+    outlet = result.scalar_one_or_none()
     
     if not outlet:
         raise HTTPException(
@@ -48,7 +51,7 @@ async def get_outlet(
 @router.post("", response_model=OutletResponse)
 async def create_outlet(
     request: OutletCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(["super_admin", "owner"]))
 ):
     outlet = Outlet(
@@ -57,8 +60,8 @@ async def create_outlet(
     )
     
     db.add(outlet)
-    db.commit()
-    db.refresh(outlet)
+    await db.commit()
+    await db.refresh(outlet)
     
     return OutletResponse.model_validate(outlet)
 
@@ -66,10 +69,11 @@ async def create_outlet(
 async def update_outlet(
     outlet_id: str,
     request: OutletUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(["super_admin", "owner"]))
 ):
-    outlet = db.query(Outlet).filter(Outlet.id == outlet_id).first()
+    result = await db.execute(select(Outlet).where(Outlet.id == outlet_id))
+    outlet = result.scalar_one_or_none()
     
     if not outlet:
         raise HTTPException(
@@ -82,18 +86,19 @@ async def update_outlet(
     if request.cogs_per_piece is not None:
         outlet.cogs_per_piece = request.cogs_per_piece
     
-    db.commit()
-    db.refresh(outlet)
+    await db.commit()
+    await db.refresh(outlet)
     
     return OutletResponse.model_validate(outlet)
 
 @router.delete("/{outlet_id}")
 async def delete_outlet(
     outlet_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(["super_admin", "owner"]))
 ):
-    outlet = db.query(Outlet).filter(Outlet.id == outlet_id).first()
+    result = await db.execute(select(Outlet).where(Outlet.id == outlet_id))
+    outlet = result.scalar_one_or_none()
     
     if not outlet:
         raise HTTPException(
@@ -101,7 +106,7 @@ async def delete_outlet(
             detail="Outlet tidak ditemukan"
         )
     
-    db.delete(outlet)
-    db.commit()
+    await db.delete(outlet)
+    await db.commit()
     
     return {"message": "Outlet berhasil dihapus"}

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import List, Optional
 import os
 import uuid
@@ -20,38 +21,41 @@ async def get_expenses(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Expense)
+    query = select(Expense)
     
     if current_user.role == "admin_outlet" and current_user.assigned_outlet_id:
-        query = query.filter(Expense.outlet_id == current_user.assigned_outlet_id)
-        query = query.filter(Expense.type != "gaji")
+        query = query.where(Expense.outlet_id == current_user.assigned_outlet_id)
+        query = query.where(Expense.type != "gaji")
     elif outlet_id:
-        query = query.filter(Expense.outlet_id == outlet_id)
+        query = query.where(Expense.outlet_id == outlet_id)
     
     if current_user.role not in ["super_admin", "owner"]:
-        query = query.filter(Expense.type != "gaji")
+        query = query.where(Expense.type != "gaji")
     
     if start_date:
-        query = query.filter(Expense.date >= start_date)
+        query = query.where(Expense.date >= start_date)
     if end_date:
-        query = query.filter(Expense.date <= end_date)
+        query = query.where(Expense.date <= end_date)
     if type:
-        query = query.filter(Expense.type == type)
+        query = query.where(Expense.type == type)
     
-    expenses = query.order_by(Expense.date.desc()).all()
+    query = query.order_by(Expense.date.desc())
+    result = await db.execute(query)
+    expenses = result.scalars().all()
     
     return [ExpenseResponse.model_validate(e) for e in expenses]
 
 @router.get("/{expense_id}", response_model=ExpenseResponse)
 async def get_expense(
     expense_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    result = await db.execute(select(Expense).where(Expense.id == expense_id))
+    expense = result.scalar_one_or_none()
     
     if not expense:
         raise HTTPException(
@@ -76,7 +80,7 @@ async def get_expense(
 @router.post("", response_model=ExpenseResponse)
 async def create_expense(
     request: ExpenseCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     if current_user.role == "admin_outlet" and current_user.assigned_outlet_id != request.outlet_id:
@@ -94,8 +98,8 @@ async def create_expense(
     expense = Expense(**request.model_dump())
     
     db.add(expense)
-    db.commit()
-    db.refresh(expense)
+    await db.commit()
+    await db.refresh(expense)
     
     return ExpenseResponse.model_validate(expense)
 
@@ -103,10 +107,11 @@ async def create_expense(
 async def update_expense(
     expense_id: str,
     request: ExpenseUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    result = await db.execute(select(Expense).where(Expense.id == expense_id))
+    expense = result.scalar_one_or_none()
     
     if not expense:
         raise HTTPException(
@@ -130,18 +135,19 @@ async def update_expense(
     for key, value in update_data.items():
         setattr(expense, key, value)
     
-    db.commit()
-    db.refresh(expense)
+    await db.commit()
+    await db.refresh(expense)
     
     return ExpenseResponse.model_validate(expense)
 
 @router.delete("/{expense_id}")
 async def delete_expense(
     expense_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    result = await db.execute(select(Expense).where(Expense.id == expense_id))
+    expense = result.scalar_one_or_none()
     
     if not expense:
         raise HTTPException(
@@ -161,8 +167,8 @@ async def delete_expense(
             detail="Anda tidak memiliki akses ke data gaji"
         )
     
-    db.delete(expense)
-    db.commit()
+    await db.delete(expense)
+    await db.commit()
     
     return {"message": "Data pengeluaran berhasil dihapus"}
 

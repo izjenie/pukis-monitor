@@ -1,11 +1,4 @@
 {
-  "/page": "app/page.js",
   "/api/auth/user/route": "app/api/auth/user/route.js",
-  "/admin-login/page": "app/admin-login/page.js",
-  "/api/outlets/route": "app/api/outlets/route.js",
-  "/api/auth/admin-login/route": "app/api/auth/admin-login/route.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/dashboard-harian/page": "app/dashboard-harian/page.js",
-  "/api/sales/mtd/route": "app/api/sales/mtd/route.js",
-  "/api/sales/route": "app/api/sales/route.js"
+  "/page": "app/page.js"
 }

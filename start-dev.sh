@@ -3,6 +3,7 @@
 cleanup() {
     echo "Shutting down services..."
     kill $BACKEND_PID 2>/dev/null
+    kill $FRONTEND_PID 2>/dev/null
     exit 0
 }
 
@@ -24,4 +25,15 @@ else
 fi
 
 echo "Starting Next.js frontend on port 5000..."
-exec npx next dev --port 5000
+npx next dev --port 5000 &
+FRONTEND_PID=$!
+
+echo ""
+echo "==================================="
+echo "Services started:"
+echo "  - FastAPI Backend: http://localhost:8000"
+echo "  - Next.js Frontend: http://localhost:5000"
+echo "==================================="
+echo ""
+
+wait $BACKEND_PID $FRONTEND_PID
