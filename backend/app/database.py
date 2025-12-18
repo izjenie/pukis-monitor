@@ -15,6 +15,12 @@ elif DATABASE_URL.startswith("postgresql://"):
 else:
     ASYNC_DATABASE_URL = DATABASE_URL
 
+if "sslmode=" in ASYNC_DATABASE_URL:
+    import re
+    ASYNC_DATABASE_URL = re.sub(r'[&?]sslmode=[^&]*', '', ASYNC_DATABASE_URL)
+    if ASYNC_DATABASE_URL.endswith('?'):
+        ASYNC_DATABASE_URL = ASYNC_DATABASE_URL[:-1]
+
 engine = create_async_engine(
     ASYNC_DATABASE_URL,
     pool_size=5,
